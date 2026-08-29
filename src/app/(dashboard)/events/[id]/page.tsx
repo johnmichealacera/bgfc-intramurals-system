@@ -169,7 +169,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           )}
           {availableTabulators.length > 0 && (
-            <Select onValueChange={(value) => typeof value === "string" && assignMutation.mutate(value)}>
+            <Select
+              onValueChange={(value) => typeof value === "string" && assignMutation.mutate(value)}
+              items={Object.fromEntries(availableTabulators.map((u) => [u.id, `${u.name} (${u.email})`]))}
+            >
               <SelectTrigger className="w-64">
                 <UserPlus className="size-4 text-muted-foreground" />
                 <SelectValue placeholder="Assign a tabulator" />

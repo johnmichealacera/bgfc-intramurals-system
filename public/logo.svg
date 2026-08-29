@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="bgfc-badge" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0d9488" />
+      <stop offset="1" stop-color="#10b981" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="32" height="32" rx="8" fill="url(#bgfc-badge)" />
+  <path
+    d="M11 9h10l-.85 6.1c-.35 2.55-2.1 4.15-4.15 4.15s-3.8-1.6-4.15-4.15L11 9z"
+    fill="#ffffff"
+  />
+  <path
+    d="M11.3 10.2c-1.9.1-3.3 1.05-3.3 2.6 0 1.75 1.75 3 3.75 3"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="1.5"
+    stroke-linecap="round"
+  />
+  <path
+    d="M20.7 10.2c1.9.1 3.3 1.05 3.3 2.6 0 1.75-1.75 3-3.75 3"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="1.5"
+    stroke-linecap="round"
+  />
+  <rect x="15" y="19" width="2" height="3.4" fill="#ffffff" />
+  <rect x="11.5" y="22.6" width="9" height="1.9" rx="0.95" fill="#ffffff" />
+  <rect x="9.5" y="24.7" width="13" height="1.9" rx="0.95" fill="#ffffff" />
+</svg>

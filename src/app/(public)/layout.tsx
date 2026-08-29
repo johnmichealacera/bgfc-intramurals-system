@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 
 const links = [
   { href: "/", label: "Home" },
@@ -17,7 +17,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <header className="relative sticky top-0 z-30 border-b border-border/70 bg-card/70 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
-            <Trophy className="size-6 text-primary" />
+            <AppLogo className="size-7 rounded-md" />
             <p className="text-sm font-semibold tracking-tight sm:text-base">BGFC Intramurals</p>
           </Link>
           <nav className="flex items-center gap-1 text-sm">

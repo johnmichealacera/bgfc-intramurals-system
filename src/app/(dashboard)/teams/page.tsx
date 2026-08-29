@@ -41,7 +41,7 @@ export default function TeamsPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
-  const { seasons, seasonId, setSeasonId } = useSelectedSeason();
+  const { seasons, seasonItems, seasonId, setSeasonId } = useSelectedSeason();
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
 
   const { data: teams, isLoading } = useQuery({
@@ -113,7 +113,7 @@ export default function TeamsPage() {
         description="Manage the teams competing in the selected season."
         actions={
           <div className="flex items-center gap-2">
-            <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)}>
+            <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select season" />
               </SelectTrigger>

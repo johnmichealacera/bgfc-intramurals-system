@@ -38,6 +38,11 @@ type FormValues = z.infer<typeof schema>;
 
 const DEFAULT_VALUES: FormValues = { name: "", type: "TEAM_VS_TEAM", description: "" };
 
+const EVENT_TYPE_ITEMS = {
+  TEAM_VS_TEAM: "Team vs. Team (e.g. basketball, volleyball)",
+  PLACEMENT: "Placement (e.g. dance, track and field)",
+};
+
 const statusStyles: Record<SportEventStatus, string> = {
   UPCOMING: "bg-muted text-muted-foreground",
   ONGOING: "bg-primary/15 text-primary",
@@ -50,7 +55,7 @@ export default function EventsPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<SportEvent | null>(null);
-  const { seasons, seasonId, setSeasonId } = useSelectedSeason();
+  const { seasons, seasonItems, seasonId, setSeasonId } = useSelectedSeason();
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
 
   const { data: events, isLoading } = useQuery({
@@ -113,7 +118,7 @@ export default function EventsPage() {
         description="Manage the sports and events competing for the season's overall standings."
         actions={
           <div className="flex items-center gap-2">
-            <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)}>
+            <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select season" />
               </SelectTrigger>
@@ -154,6 +159,7 @@ export default function EventsPage() {
                       value={form.watch("type")}
                       onValueChange={(v) => form.setValue("type", v as FormValues["type"])}
                       disabled={!!editingEvent}
+                      items={EVENT_TYPE_ITEMS}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />

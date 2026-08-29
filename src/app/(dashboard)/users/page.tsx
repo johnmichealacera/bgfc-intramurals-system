@@ -36,6 +36,8 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+const ROLE_ITEMS = { TABULATOR: "Tabulator", ADMIN: "Admin" };
+
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -109,6 +111,7 @@ export default function UsersPage() {
                   <Select
                     value={form.watch("role")}
                     onValueChange={(value) => form.setValue("role", value as FormValues["role"])}
+                    items={ROLE_ITEMS}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />
@@ -158,6 +161,7 @@ export default function UsersPage() {
                       <Select
                         value={user.role}
                         onValueChange={(role) => updateMutation.mutate({ id: user.id, role: role as AppUser["role"] })}
+                        items={ROLE_ITEMS}
                       >
                         <SelectTrigger size="sm">
                           <SelectValue />

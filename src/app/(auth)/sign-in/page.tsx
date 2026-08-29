@@ -6,7 +6,7 @@ import { z } from "zod";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Trophy } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,9 +60,7 @@ export default function SignInPage() {
           <div className="mx-auto">
             <div className="relative">
               <div className="absolute -inset-1 rounded-[1.5rem] bg-linear-to-br from-primary/20 via-transparent to-teal-500/15 blur-md" />
-              <div className="relative flex size-16 items-center justify-center rounded-[1.2rem] border border-border/70 bg-card/90 shadow-lg">
-                <Trophy className="size-8 text-primary" />
-              </div>
+              <AppLogo className="relative size-16 rounded-[1.2rem] shadow-lg" />
             </div>
           </div>
           <p className="mx-auto inline-flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">

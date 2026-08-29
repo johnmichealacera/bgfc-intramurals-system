@@ -24,7 +24,7 @@ const matchStatusStyles: Record<string, string> = {
 };
 
 export default function MatchesPage() {
-  const { seasons, seasonId, setSeasonId } = useSelectedSeason();
+  const { seasons, seasonItems, seasonId, setSeasonId } = useSelectedSeason();
 
   const { data: events } = useQuery({
     queryKey: ["events", seasonId],
@@ -57,7 +57,7 @@ export default function MatchesPage() {
         description="All scheduled matches across team-vs-team events for the selected season."
         actions={
           <div className="flex items-center gap-2">
-            <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)}>
+            <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select season" />
               </SelectTrigger>

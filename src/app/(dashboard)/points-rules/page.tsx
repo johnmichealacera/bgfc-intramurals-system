@@ -19,7 +19,7 @@ type Row = { placement: string; points: string };
 
 export default function PointsRulesPage() {
   const queryClient = useQueryClient();
-  const { seasons, seasonId, setSeasonId } = useSelectedSeason();
+  const { seasons, seasonItems, seasonId, setSeasonId } = useSelectedSeason();
   const [rows, setRows] = useState<Row[]>([]);
   const [loadedForSeasonId, setLoadedForSeasonId] = useState<string | undefined>(undefined);
 
@@ -61,7 +61,7 @@ export default function PointsRulesPage() {
         title="Points Rules"
         description="Configure how many overall points a team earns for each event placement."
         actions={
-          <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)}>
+          <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select season" />
             </SelectTrigger>

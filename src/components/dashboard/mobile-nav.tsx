@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, Trophy } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 import { SignOutButton } from "./sign-out-button";
+import { AppLogo } from "@/components/app-logo";
 import type { AppRole } from "@/lib/auth";
 
 export function MobileNav({
@@ -56,9 +57,7 @@ export function MobileNav({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-linear-to-br from-primary/20 to-teal-500/20 text-primary ring-1 ring-primary/20">
-              <Trophy className="size-4" />
-            </div>
+            <AppLogo className="size-8 rounded-lg" />
             <p className="text-sm font-semibold tracking-tight">BGFC Intramurals</p>
           </div>
           <button onClick={() => setOpen(false)} aria-label="Close navigation">

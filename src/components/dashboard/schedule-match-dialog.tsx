@@ -52,6 +52,16 @@ export function ScheduleMatchDialog({
     defaultValues: { sportEventId: defaultEventId ?? "", homeTeamId: "", awayTeamId: "", scheduledAt: "", venue: "" },
   });
 
+  // Lets each <Select items={...}> show the event/team name instead of its raw id.
+  const eventItems = Object.fromEntries(events.map((e) => [e.id, e.name]));
+  const teamItems = Object.fromEntries(teams.map((t) => [t.id, t.name]));
+
+  // A team already picked on one side can't also be picked on the other.
+  const homeTeamId = form.watch("homeTeamId");
+  const awayTeamId = form.watch("awayTeamId");
+  const homeTeamOptions = teams.filter((t) => t.id !== awayTeamId);
+  const awayTeamOptions = teams.filter((t) => t.id !== homeTeamId);
+
   const createMutation = useMutation({
     mutationFn: (values: FormValues) => apiFetch("/api/matches", { method: "POST", body: JSON.stringify(values) }),
     onSuccess: () => {
@@ -78,7 +88,11 @@ export function ScheduleMatchDialog({
           {!defaultEventId && (
             <div className="space-y-2">
               <Label>Event</Label>
-              <Select value={form.watch("sportEventId")} onValueChange={(v) => form.setValue("sportEventId", v ?? "")}>
+              <Select
+                value={form.watch("sportEventId")}
+                onValueChange={(v) => form.setValue("sportEventId", v ?? "")}
+                items={eventItems}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select event" />
                 </SelectTrigger>
@@ -98,12 +112,16 @@ export function ScheduleMatchDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Home team</Label>
-              <Select value={form.watch("homeTeamId")} onValueChange={(v) => form.setValue("homeTeamId", v ?? "")}>
+              <Select
+                value={form.watch("homeTeamId")}
+                onValueChange={(v) => form.setValue("homeTeamId", v ?? "")}
+                items={teamItems}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teams.map((t) => (
+                  {homeTeamOptions.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name}
                     </SelectItem>
@@ -113,12 +131,16 @@ export function ScheduleMatchDialog({
             </div>
             <div className="space-y-2">
               <Label>Away team</Label>
-              <Select value={form.watch("awayTeamId")} onValueChange={(v) => form.setValue("awayTeamId", v ?? "")}>
+              <Select
+                value={form.watch("awayTeamId")}
+                onValueChange={(v) => form.setValue("awayTeamId", v ?? "")}
+                items={teamItems}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teams.map((t) => (
+                  {awayTeamOptions.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name}
                     </SelectItem>

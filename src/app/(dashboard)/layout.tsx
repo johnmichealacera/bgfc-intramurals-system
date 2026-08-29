@@ -5,7 +5,7 @@ import { authOptions, type AppRole } from "@/lib/auth";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
-import { Trophy } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 
 function getInitials(name: string) {
   return name
@@ -43,9 +43,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           >
             <div className="relative">
               <div className="absolute -inset-0.5 rounded-lg bg-linear-to-br from-primary/25 via-transparent to-teal-500/20 blur-sm opacity-0 transition-opacity group-hover:opacity-100" />
-              <div className="relative rounded-lg border border-border/60 bg-card p-1.5">
-                <Trophy className="size-8 text-primary" />
-              </div>
+              <AppLogo className="relative size-10 rounded-lg shadow-sm" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -83,7 +81,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <main className="relative flex-1 min-w-0">
           <div className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 shadow-sm">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <Trophy className="size-6 text-primary" />
+              <AppLogo className="size-7 rounded-md" />
               <p className="text-sm font-semibold tracking-tight">BGFC Intramurals</p>
             </Link>
             <MobileNav role={role} displayName={displayName} initials={initials} />
