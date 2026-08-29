@@ -8,6 +8,8 @@ import {
   Radio,
   ListOrdered,
   Users,
+  BookOpen,
+  Dumbbell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,10 +25,12 @@ export const navConfig: NavItem[] = [
   { href: "/seasons", label: "Seasons", icon: CalendarDays, roles: ["ADMIN"] },
   { href: "/teams", label: "Teams", icon: Shield, roles: ["ADMIN"] },
   { href: "/events", label: "Events", icon: Trophy, roles: ["ADMIN"] },
+  { href: "/sports", label: "Sports", icon: Dumbbell, roles: ["ADMIN"] },
   { href: "/matches", label: "Matches", icon: Swords, roles: ["ADMIN"] },
   { href: "/scoreboard", label: "Scoreboard", icon: Radio, roles: ["ADMIN", "TABULATOR"] },
   { href: "/points-rules", label: "Points Rules", icon: ListOrdered, roles: ["ADMIN"] },
   { href: "/users", label: "Users", icon: Users, roles: ["ADMIN"] },
+  { href: "/guidelines", label: "Guidelines", icon: BookOpen, roles: ["ADMIN", "TABULATOR"] },
 ];
 
 /**

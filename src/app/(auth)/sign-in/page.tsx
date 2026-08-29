@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
@@ -54,6 +56,14 @@ export default function SignInPage() {
         className="pointer-events-none absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-emerald-500/5 blur-2xl"
         aria-hidden
       />
+
+      <Link
+        href="/"
+        className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground sm:left-6 sm:top-6"
+      >
+        <ArrowLeft className="size-4" />
+        Back to homepage
+      </Link>
 
       <Card className="relative w-full max-w-md border-border/80 bg-card/95 p-2 shadow-2xl ring-1 ring-black/5 backdrop-blur-md dark:bg-card/90 dark:ring-white/10 sm:p-8">
         <CardHeader className="space-y-3 px-0 text-center">

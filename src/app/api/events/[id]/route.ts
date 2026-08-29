@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
+  category: z.enum(["MEN", "WOMEN", "MIXED"]).nullable().optional(),
   description: z.string().optional(),
 });
 

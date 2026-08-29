@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import { Trophy, Radio, ListOrdered, CalendarDays, ArrowUpRight } from "lucide-react";
+import { Trophy, Radio, ListOrdered, CalendarDays, BookOpen, ArrowUpRight } from "lucide-react";
 import { fetcher } from "@/lib/api-client";
 import type { Match, Season } from "@/lib/types";
 
@@ -43,7 +43,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
           href="/live"
           className="rounded-xl border border-border/70 bg-card/85 p-5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10"
@@ -72,6 +72,16 @@ export default function PublicHomePage() {
           <p className="mt-3 font-semibold tracking-tight">Events & Schedule</p>
           <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
             Browse all events <ArrowUpRight className="size-3" />
+          </p>
+        </Link>
+        <Link
+          href="/rules"
+          className="rounded-xl border border-border/70 bg-card/85 p-5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10"
+        >
+          <BookOpen className="size-5 text-primary" />
+          <p className="mt-3 font-semibold tracking-tight">Sports Guidelines</p>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+            See the official rules <ArrowUpRight className="size-3" />
           </p>
         </Link>
       </section>

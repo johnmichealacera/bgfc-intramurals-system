@@ -1,3 +1,15 @@
+import type { SportEventCategory } from "@/lib/types";
+
+const EVENT_CATEGORY_LABELS: Record<SportEventCategory, string> = {
+  MEN: "Men's",
+  WOMEN: "Women's",
+  MIXED: "Mixed",
+};
+
+export function eventCategoryLabel(category: SportEventCategory | null | undefined) {
+  return category ? EVENT_CATEGORY_LABELS[category] : null;
+}
+
 export const format = {
   date(value: string | Date) {
     return new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });

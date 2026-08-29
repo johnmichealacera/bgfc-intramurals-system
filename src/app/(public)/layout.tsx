@@ -6,6 +6,7 @@ const links = [
   { href: "/live", label: "Live" },
   { href: "/standings", label: "Standings" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/rules", label: "Guidelines" },
 ];
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {

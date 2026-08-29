@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,20 +28,29 @@ import {
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
-import type { SportEvent, SportEventStatus } from "@/lib/types";
+import { eventCategoryLabel } from "@/lib/format";
+import type { Sport, SportEvent, SportEventStatus } from "@/lib/types";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["TEAM_VS_TEAM", "PLACEMENT"]),
+  category: z.enum(["MEN", "WOMEN", "MIXED", "UNSPECIFIED"]),
   description: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_VALUES: FormValues = { name: "", type: "TEAM_VS_TEAM", description: "" };
+const DEFAULT_VALUES: FormValues = { name: "", type: "TEAM_VS_TEAM", category: "UNSPECIFIED", description: "" };
 
 const EVENT_TYPE_ITEMS = {
   TEAM_VS_TEAM: "Team vs. Team (e.g. basketball, volleyball)",
   PLACEMENT: "Placement (e.g. dance, track and field)",
+};
+
+const CATEGORY_ITEMS = {
+  UNSPECIFIED: "Not specified",
+  MEN: "Men",
+  WOMEN: "Women",
+  MIXED: "Mixed",
 };
 
 const statusStyles: Record<SportEventStatus, string> = {
@@ -64,9 +74,21 @@ export default function EventsPage() {
     enabled: !!seasonId,
   });
 
+  const { data: sports } = useQuery({
+    queryKey: ["sports"],
+    queryFn: () => apiFetch<Sport[]>("/api/sports"),
+  });
+
   const createMutation = useMutation({
     mutationFn: (values: FormValues) =>
-      apiFetch<SportEvent>("/api/events", { method: "POST", body: JSON.stringify({ ...values, seasonId }) }),
+      apiFetch<SportEvent>("/api/events", {
+        method: "POST",
+        body: JSON.stringify({
+          ...values,
+          seasonId,
+          category: values.category === "UNSPECIFIED" ? undefined : values.category,
+        }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events", seasonId] });
       toast.success("Event created");
@@ -77,8 +99,11 @@ export default function EventsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name, description }: { id: string; name: string; description?: string }) =>
-      apiFetch<SportEvent>(`/api/events/${id}`, { method: "PATCH", body: JSON.stringify({ name, description }) }),
+    mutationFn: ({ id, name, category, description }: { id: string; name: string; category: FormValues["category"]; description?: string }) =>
+      apiFetch<SportEvent>(`/api/events/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, category: category === "UNSPECIFIED" ? null : category, description }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events", seasonId] });
       toast.success("Event updated");
@@ -97,13 +122,23 @@ export default function EventsPage() {
 
   function openEditDialog(event: SportEvent) {
     setEditingEvent(event);
-    form.reset({ name: event.name, type: event.type, description: event.description ?? "" });
+    form.reset({
+      name: event.name,
+      type: event.type,
+      category: event.category ?? "UNSPECIFIED",
+      description: event.description ?? "",
+    });
     setOpen(true);
   }
 
   function handleSubmit(values: FormValues) {
     if (editingEvent) {
-      updateMutation.mutate({ id: editingEvent.id, name: values.name, description: values.description });
+      updateMutation.mutate({
+        id: editingEvent.id,
+        name: values.name,
+        category: values.category,
+        description: values.description,
+      });
     } else {
       createMutation.mutate(values);
     }
@@ -146,6 +181,33 @@ export default function EventsPage() {
                   <DialogTitle>{editingEvent ? "Edit Event" : "Create Event"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                  {!editingEvent && !!sports?.length && (
+                    <div className="space-y-2">
+                      <Label>Quick add a sport</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {sports.map((sport) => (
+                          <button
+                            key={sport.id}
+                            type="button"
+                            onClick={() => {
+                              form.setValue("name", sport.name);
+                              form.setValue("type", sport.type);
+                            }}
+                            className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                          >
+                            {sport.name}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Don&apos;t see a sport you need? Add it from the{" "}
+                        <Link href="/sports" className="text-primary hover:underline">
+                          Sports page
+                        </Link>
+                        .
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="name">Event name</Label>
                     <Input id="name" placeholder="Men's Basketball" {...form.register("name")} />
@@ -172,6 +234,24 @@ export default function EventsPage() {
                     {editingEvent && (
                       <p className="text-xs text-muted-foreground">Type can&apos;t be changed after an event is created.</p>
                     )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select
+                      value={form.watch("category")}
+                      onValueChange={(v) => form.setValue("category", v as FormValues["category"])}
+                      items={CATEGORY_ITEMS}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UNSPECIFIED">Not specified</SelectItem>
+                        <SelectItem value="MEN">Men</SelectItem>
+                        <SelectItem value="WOMEN">Women</SelectItem>
+                        <SelectItem value="MIXED">Mixed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="description">Description (optional)</Label>
@@ -240,7 +320,14 @@ export default function EventsPage() {
                       </Button>
                     </div>
                   </div>
-                  <p className="font-semibold tracking-tight">{event.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold tracking-tight">{event.name}</p>
+                    {event.category && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {eventCategoryLabel(event.category)}
+                      </Badge>
+                    )}
+                  </div>
                   {event._count && (
                     <p className="mt-auto text-xs text-muted-foreground">
                       {event.type === "TEAM_VS_TEAM"

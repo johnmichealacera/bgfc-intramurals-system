@@ -9,6 +9,7 @@ const eventSchema = z.object({
   seasonId: z.string().min(1),
   name: z.string().min(1),
   type: z.enum(["TEAM_VS_TEAM", "PLACEMENT"]),
+  category: z.enum(["MEN", "WOMEN", "MIXED"]).optional(),
   description: z.string().optional(),
 });
 

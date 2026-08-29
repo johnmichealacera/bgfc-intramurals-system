@@ -6,6 +6,7 @@ import { CalendarDays, Swords, ListOrdered } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
+import { eventCategoryLabel } from "@/lib/format";
 import type { SportEvent, SportEventStatus } from "@/lib/types";
 
 const statusStyles: Record<SportEventStatus, string> = {
@@ -51,7 +52,10 @@ export default function SchedulePage() {
                 </span>
                 <Badge className={statusStyles[event.status]}>{event.status}</Badge>
               </div>
-              <p className="mt-2 font-semibold tracking-tight">{event.name}</p>
+              <p className="mt-2 font-semibold tracking-tight">
+                {event.name}
+                {event.category && <span className="ml-1.5 font-normal text-muted-foreground">({eventCategoryLabel(event.category)})</span>}
+              </p>
             </Link>
           ))}
         </div>

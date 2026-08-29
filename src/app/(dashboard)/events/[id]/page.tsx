@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Radio, UserPlus, X, Trophy } from "lucide-react";
+import { Radio, UserPlus, X, Trophy, BookOpen } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { format } from "@/lib/format";
+import { format, eventCategoryLabel } from "@/lib/format";
+import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import type { AppUser, SportEventDetail, Team } from "@/lib/types";
 
 const matchStatusStyles: Record<string, string> = {
@@ -110,6 +111,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const canFinalize = event.type === "PLACEMENT" || unresolvedMatches === 0;
   const assignedUserIds = new Set(event.tabulators.map((t) => t.userId));
   const availableTabulators = (users ?? []).filter((u) => u.role === "TABULATOR" && !assignedUserIds.has(u.id));
+  const guideline = findGuidelineForEventName(event.name);
 
   function handleFinalize() {
     const placements = Object.entries(placementDrafts)
@@ -130,6 +132,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="outline">{event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}</Badge>
+            {event.category && <Badge variant="outline">{eventCategoryLabel(event.category)}</Badge>}
             <Badge>{event.status}</Badge>
             {event.status === "UPCOMING" && (
               <Button size="sm" variant="outline" onClick={() => statusMutation.mutate("ONGOING")}>
@@ -144,6 +147,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         }
       />
+
+      {guideline && (
+        <Link
+          href={`/guidelines#${guideline.slug}`}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+        >
+          <BookOpen className="size-3.5" />
+          View official {guideline.name} guidelines
+        </Link>
+      )}
 
       <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
         <CardHeader>

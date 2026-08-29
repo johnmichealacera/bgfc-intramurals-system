@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
+import { SPORTS_GUIDELINES } from "../src/lib/sports-guidelines";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
@@ -59,7 +60,27 @@ async function main() {
     });
   }
 
-  console.log("Seed complete");
+  for (const sport of SPORTS_GUIDELINES) {
+    await db.sportEvent.upsert({
+      where: { id: `seed-event-${sport.slug}` },
+      update: {},
+      create: {
+        id: `seed-event-${sport.slug}`,
+        seasonId: season.id,
+        name: sport.name,
+        type: sport.suggestedEventType,
+        description: sport.overview,
+      },
+    });
+
+    await db.sport.upsert({
+      where: { name: sport.name },
+      update: { isDefault: true },
+      create: { name: sport.name, type: sport.suggestedEventType, isDefault: true },
+    });
+  }
+
+  console.log(`Seed complete — ${SPORTS_GUIDELINES.length} default sports added to ${season.name}`);
 }
 
 main()

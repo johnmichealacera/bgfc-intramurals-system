@@ -1,12 +1,14 @@
 "use client";
 
 import { use } from "react";
+import Link from "next/link";
 import useSWR from "swr";
-import { Trophy } from "lucide-react";
+import { Trophy, BookOpen } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
-import { format } from "@/lib/format";
+import { format, eventCategoryLabel } from "@/lib/format";
+import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import type { SportEventDetail } from "@/lib/types";
 
 const matchStatusStyles: Record<string, string> = {
@@ -31,13 +33,25 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
     );
   }
 
+  const guideline = findGuidelineForEventName(event.name);
+
   return (
     <div className="space-y-6">
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}
+          {event.category && ` · ${eventCategoryLabel(event.category)}`}
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">{event.name}</h1>
+        {guideline && (
+          <Link
+            href={`/rules#${guideline.slug}`}
+            className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+          >
+            <BookOpen className="size-3.5" />
+            View official {guideline.name} guidelines
+          </Link>
+        )}
       </div>
 
       {event.type === "TEAM_VS_TEAM" && (

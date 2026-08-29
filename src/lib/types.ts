@@ -24,12 +24,21 @@ export type AppUser = {
 
 export type SportEventType = "TEAM_VS_TEAM" | "PLACEMENT";
 export type SportEventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
+export type SportEventCategory = "MEN" | "WOMEN" | "MIXED";
+
+export type Sport = {
+  id: string;
+  name: string;
+  type: SportEventType;
+  isDefault: boolean;
+};
 
 export type SportEvent = {
   id: string;
   seasonId: string;
   name: string;
   type: SportEventType;
+  category: SportEventCategory | null;
   status: SportEventStatus;
   description: string | null;
   _count?: { matches: number; placements: number; tabulators: number };
