@@ -13,6 +13,22 @@ const updateSchema = z.object({
     .optional(),
 });
 
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getServerSession(authOptions);
+    assertRole(session, ["ADMIN", "TABULATOR"]);
+
+    const { id } = await params;
+    const team = await db.team.findUniqueOrThrow({
+      where: { id },
+      include: { season: true, participants: { orderBy: { fullName: "asc" } } },
+    });
+    return NextResponse.json(team);
+  } catch (error) {
+    return apiError(error);
+  }
+}
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);

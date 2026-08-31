@@ -25,6 +25,7 @@ export const config = {
   matcher: [
     "/seasons/:path*",
     "/teams/:path*",
+    "/participants/:path*",
     "/events/:path*",
     "/sports/:path*",
     "/matches/:path*",

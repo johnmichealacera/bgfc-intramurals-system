@@ -11,6 +11,25 @@ export type Team = {
   seasonId: string;
   name: string;
   colorHex: string;
+  _count?: { participants: number };
+};
+
+export type ParticipantGender = "MALE" | "FEMALE";
+
+export type Participant = {
+  id: string;
+  seasonId: string;
+  teamId: string | null;
+  fullName: string;
+  course: string;
+  yearLevel: string | null;
+  gender: ParticipantGender | null;
+  team?: { id: string; name: string; colorHex: string } | null;
+};
+
+export type TeamDetail = Team & {
+  season: Season;
+  participants: Participant[];
 };
 
 export type AppUser = {

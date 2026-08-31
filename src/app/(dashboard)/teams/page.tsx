@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Shield } from "lucide-react";
+import { Plus, Pencil, Shield, Users } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ConfirmDeleteDialog } from "@/components/dashboard/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ type FormValues = z.infer<typeof schema>;
 const DEFAULT_VALUES: FormValues = { name: "", colorHex: "#0f766e" };
 
 export default function TeamsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
@@ -191,33 +193,49 @@ export default function TeamsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {teams.map((team) => (
-            <Card
+            <div
               key={team.id}
-              className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10"
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(`/teams/${team.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") router.push(`/teams/${team.id}`);
+              }}
+              className="cursor-pointer"
             >
-              <CardContent className="flex items-center justify-between gap-3 p-4">
-                <div className="flex items-center gap-3">
-                  <span className="size-6 shrink-0 rounded-full ring-1 ring-black/10" style={{ backgroundColor: team.colorHex }} />
-                  <p className="font-medium">{team.name}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => openEditDialog(team)}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  <ConfirmDeleteDialog
-                    title={`Delete ${team.name}?`}
-                    description="This can only be done if the team has no matches or results recorded."
-                    pending={deleteMutation.isPending}
-                    onConfirm={() => deleteMutation.mutate(team.id)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+              <Card className="h-full border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
+                <CardContent className="flex items-center justify-between gap-3 p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="size-6 shrink-0 rounded-full ring-1 ring-black/10" style={{ backgroundColor: team.colorHex }} />
+                    <div>
+                      <p className="font-medium">{team.name}</p>
+                      {team._count && (
+                        <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Users className="size-3" />
+                          {team._count.participants} participant{team._count.participants === 1 ? "" : "s"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => openEditDialog(team)}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    <ConfirmDeleteDialog
+                      title={`Delete ${team.name}?`}
+                      description="This can only be done if the team has no matches or results recorded."
+                      pending={deleteMutation.isPending}
+                      onConfirm={() => deleteMutation.mutate(team.id)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ))}
         </div>
       )}

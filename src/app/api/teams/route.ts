@@ -23,6 +23,7 @@ export async function GET(req: Request) {
     const teams = await db.team.findMany({
       where: seasonId ? { seasonId } : undefined,
       orderBy: { name: "asc" },
+      include: { _count: { select: { participants: true } } },
     });
     return NextResponse.json(teams);
   } catch (error) {

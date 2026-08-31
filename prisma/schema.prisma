@@ -117,9 +117,10 @@ model Season {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  teams      Team[]
-  events     SportEvent[]
-  pointRules PlacementPointsRule[]
+  teams        Team[]
+  events       SportEvent[]
+  pointRules   PlacementPointsRule[]
+  participants Participant[]
 
   @@index([isActive])
   @@map("seasons")
@@ -133,15 +134,40 @@ model Team {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  season      Season           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
-  homeMatches Match[]          @relation("MatchHomeTeam")
-  awayMatches Match[]          @relation("MatchAwayTeam")
-  wonMatches  Match[]          @relation("MatchWinnerTeam")
-  placements  EventPlacement[]
+  season       Season           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  homeMatches  Match[]          @relation("MatchHomeTeam")
+  awayMatches  Match[]          @relation("MatchAwayTeam")
+  wonMatches   Match[]          @relation("MatchWinnerTeam")
+  placements   EventPlacement[]
+  participants Participant[]
 
   @@unique([seasonId, name])
   @@index([seasonId])
   @@map("teams")
+}
+
+enum ParticipantGender {
+  MALE
+  FEMALE
+}
+
+model Participant {
+  id        String             @id @default(cuid())
+  seasonId  String
+  teamId    String?
+  fullName  String
+  course    String
+  yearLevel String?
+  gender    ParticipantGender?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  team   Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([seasonId])
+  @@index([teamId])
+  @@map("participants")
 }
 
 model SportEvent {
