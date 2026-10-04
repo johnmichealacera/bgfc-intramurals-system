@@ -8,10 +8,7 @@ import { db } from "@/lib/db";
 const teamSchema = z.object({
   seasonId: z.string().min(1),
   name: z.string().min(1),
-  colorHex: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .optional(),
+  colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
 });
 
 export async function GET(req: Request) {

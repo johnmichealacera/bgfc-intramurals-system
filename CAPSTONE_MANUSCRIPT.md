@@ -58,13 +58,26 @@ ACCEPTED in partial fulfillment of the requirements for the degree Bachelor of S
 
 ---
 
+## ABSTRACT
+
+Intramural events at Bucas Grande Foundation College (BGFC) have long relied on manual, paper-based methods for recording and computing scores. This approach is slow, prone to computational error, and offers no real-time visibility into standings, often delaying the announcement of results — including the overall champion — by several hours or more. This study developed the **Web-Based Intramurals Tabulation System of Bucas Grande Foundation College**, a full-stack web application designed to replace this manual process with a centralized platform capable of live score entry and automatic standings computation.
+
+The system was built using the Rapid Application Development (RAD) methodology on a modern technology stack — Next.js, TypeScript, PostgreSQL, Prisma ORM, NextAuth.js, SWR, TanStack Query, React Hook Form with Zod, bcryptjs, and Tailwind CSS with shadcn/ui — and its design was directly informed by the official PRISAA National Games governing guidelines, which shaped its event model, gender-category divisions, and points-per-placement scoring approach. The completed system supports season, team, and sports-catalog management; the scheduling and live scoring of team-vs-team matches through a dedicated, touch-friendly scoreboard control panel; the recording and points-snapshotting of placement-based event results; role-based access separating Administrators from Tabulators, with each protected page and action independently re-verified at the server; and a public, login-free site presenting live scores, overall standings, and the event schedule to students, parents, and visitors as events happen. Live score updates are written using atomic database operations rather than a read-then-write pattern, guaranteeing that rapid or concurrent scoring can never corrupt a match's recorded result.
+
+As of this writing, the system is feature-complete against its stated objectives. Its quality has not yet been formally evaluated against real respondents using the ISO 9126 instrument presented in Chapter 5; that evaluation, along with its results, remains to be conducted prior to final defense. The researchers recommend that BGFC pilot the system during an actual intramurals season to validate its usability and reliability under real operating conditions.
+
+**Keywords:** intramurals tabulation, live scoring, web-based information system, real-time standings, Rapid Application Development
+
+---
+
 ## TABLE OF CONTENTS
 
 | Title | Page |
 |---|---|
 | APPROVAL SHEET | i |
-| ACKNOWLEDGEMENT | ii |
-| TABLE OF CONTENTS | iii |
+| ABSTRACT | ii |
+| ACKNOWLEDGEMENT | iii |
+| TABLE OF CONTENTS | iv |
 | **CHAPTER** | |
 | 1. INTRODUCTION | 5 |
 | &nbsp;&nbsp;&nbsp;Project Context | 5 |
@@ -257,9 +270,24 @@ Yas, Q., Alazzawi, A., & Rahmatullah, B. (2023). A Comprehensive Review of Softw
 
 ## TECHNICAL BACKGROUND
 
-*[Insert Figure 1: System Architecture of the BGFC Intramurals Tabulation System]*
+![Figure 1. System Architecture of the BGFC Intramurals Tabulation System](docs/figures/figure-1-system-architecture.png)
+
+**Figure 1.** System Architecture of the BGFC Intramurals Tabulation System
 
 The BGFC Intramurals Tabulation System is a full-stack web application built to replace the manual tallying process described in Chapter 1 with a centralized, database-backed platform capable of live scoring and instant standings computation. The system runs on a modern technology stack composed of Next.js, TypeScript, PostgreSQL, Prisma, NextAuth.js, and Tailwind CSS with shadcn/ui, all working together to create a reliable, scalable, and role-aware platform for intramurals tabulation.
+
+### System Architecture Overview
+
+As illustrated in Figure 1, the system follows a **layered (n-tier) architecture**. Each layer has a single responsibility, so presentation concerns stay separate from business rules and persistent storage. Requests move downward from users to the database; responses move upward as JSON over HTTPS.
+
+1. **User Layer** — Three actors interact with the system: **Spectators** (public, no login), **Administrators** (full management of seasons, teams, events, users, and finalization), and **Tabulators** (live scoring limited to events they are assigned to).
+2. **Presentation Layer** — A React interface organized into three Next.js App Router route groups: a login-free **public site** (live scores, standings, schedule, rules) powered by SWR polling; an **authentication** area for staff sign-in; and a role-filtered **staff dashboard** powered by TanStack Query for reads and mutations.
+3. **Application Layer** — Next.js API Route Handlers receive client requests, enforce access through a proxy/middleware gate plus `assertRole` / `assertEventAccess` checks, manage sessions with NextAuth.js (Credentials provider, JWT strategy, bcryptjs password hashing), and validate all inputs with Zod on both the client and the server.
+4. **Domain / Business Logic Layer** — Encapsulates intramurals operations: season management and points rules, teams and participant rosters, sport-event and match scheduling (team-vs-team and placement formats), live scoring and match lifecycle updates, and placement finalization that feeds overall standings.
+5. **Data Access Layer** — Prisma ORM provides type-safe queries, versioned migrations, relational includes, and atomic score increments/decrements so concurrent scoring updates cannot silently overwrite each other.
+6. **Data Layer** — PostgreSQL stores all persistent entities (users, seasons, teams, participants, sports, sport events, matches, event placements, and placement points rules), with schema-level constraints protecting integrity (for example, a single active season and non-negative match scores).
+
+Cross-cutting concerns that apply across layers include **role-based access control (RBAC)**, **input validation**, **password hashing**, and **environment-based configuration** that separates local development from the deployed production database.
 
 ### Next.js (App Router)
 
@@ -346,9 +374,11 @@ The system is designed to run on serverless hosting, with PostgreSQL provided by
 
 ## METHODOLOGY
 
-*[Insert Figure 2: Rapid Application Development Diagram]*
+![Figure 2. Rapid Application Development Diagram](docs/figures/figure-2-rad-diagram.png)
 
-This project was developed using the **Rapid Application Development (RAD)** methodology. RAD was chosen because it allows fast feedback, quick adjustments, and continuous refinement — well suited to a system whose exact operational needs (which sports to support, how a season should be structured, how ties in the standings should be broken) became clearer only once early versions of each feature could actually be used and tested. The project proceeded through five phases.
+**Figure 2.** Rapid Application Development (RAD) Diagram of the BGFC Intramurals Tabulation System
+
+This project was developed using the **Rapid Application Development (RAD)** methodology. RAD was chosen because it allows fast feedback, quick adjustments, and continuous refinement — well suited to a system whose exact operational needs (which sports to support, how a season should be structured, how ties in the standings should be broken) became clearer only once early versions of each feature could actually be used and tested. As shown in Figure 2, the project proceeded through five phases, with an iterative feedback loop between development and testing so that each working increment could be refined before the next feature was built.
 
 ### Phase 1: System Analysis and Design
 

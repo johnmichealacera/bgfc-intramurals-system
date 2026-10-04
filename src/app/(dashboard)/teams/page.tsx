@@ -107,6 +107,7 @@ export default function TeamsPage() {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const colorHex = form.watch("colorHex");
 
   return (
     <div className="space-y-6">
@@ -156,9 +157,15 @@ export default function TeamsPage() {
                       <input
                         type="color"
                         className="h-9 w-12 cursor-pointer rounded-md border border-input"
-                        {...form.register("colorHex")}
+                        value={colorHex}
+                        onChange={(e) =>
+                          form.setValue("colorHex", e.target.value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
                       />
-                      <Input className="flex-1" {...form.register("colorHex")} />
+                      <Input id="colorHex" className="flex-1" {...form.register("colorHex")} />
                     </div>
                     {form.formState.errors.colorHex && (
                       <p className="text-sm text-destructive">{form.formState.errors.colorHex.message}</p>

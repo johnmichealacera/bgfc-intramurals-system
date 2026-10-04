@@ -1,0 +1,58 @@
+%% Figure 1: System Architecture of the BGFC Intramurals Tabulation System
+%% Render with Mermaid Live Editor or: npx @mermaid-js/mermaid-cli -i figure-1-system-architecture.mmd -o figure-1-system-architecture.png
+flowchart TB
+  subgraph USERS["User Layer"]
+    SPEC["Spectator / Public<br/>(no login)"]
+    ADMIN["Administrator<br/>(full management)"]
+    TAB["Tabulator<br/>(assigned-event scoring)"]
+  end
+
+  subgraph PRESENTATION["Presentation Layer — React 19 + Tailwind CSS + shadcn/ui"]
+    PUB["Public Site (public)<br/>Live · Standings · Schedule · Rules<br/>SWR polling"]
+    AUTH["Authentication (auth)<br/>Staff Sign-In"]
+    DASH["Staff Dashboard (dashboard)<br/>Seasons · Teams · Events · Scoreboard<br/>TanStack Query"]
+  end
+
+  subgraph APPLICATION["Application Layer — Next.js App Router + TypeScript"]
+    API["API Route Handlers<br/>/api/public · /api/matches · /api/events · …"]
+    RBAC["Access Control<br/>Proxy · assertRole · assertEventAccess"]
+    NAUTH["NextAuth.js<br/>Credentials · JWT · bcryptjs"]
+    VAL["Validation<br/>Zod + React Hook Form"]
+  end
+
+  subgraph DOMAIN["Domain / Business Logic Layer"]
+    SEASON["Season Management"]
+    TEAMS["Teams &amp; Roster"]
+    EVENTS["Events &amp; Matches"]
+    SCORE["Live Scoring"]
+    STAND["Placements &amp; Standings"]
+  end
+
+  subgraph DATAACCESS["Data Access Layer — Prisma ORM 7"]
+    PRISMA["Type-safe queries · Migrations · Atomic increments"]
+  end
+
+  subgraph DATALAYER["Data Layer — PostgreSQL"]
+    DB["Users · Seasons · Teams · Participants · Sports<br/>Sport Events · Matches · Event Placements · Points Rules"]
+  end
+
+  SPEC --> PUB
+  ADMIN --> AUTH
+  TAB --> AUTH
+  AUTH --> DASH
+  PUB --> API
+  DASH --> API
+  API --> RBAC
+  API --> NAUTH
+  API --> VAL
+  RBAC --> SEASON
+  RBAC --> TEAMS
+  RBAC --> EVENTS
+  RBAC --> SCORE
+  RBAC --> STAND
+  SEASON --> PRISMA
+  TEAMS --> PRISMA
+  EVENTS --> PRISMA
+  SCORE --> PRISMA
+  STAND --> PRISMA
+  PRISMA --> DB
