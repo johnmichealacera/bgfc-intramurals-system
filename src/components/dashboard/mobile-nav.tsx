@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { SidebarNav } from "./sidebar-nav";
 import { SignOutButton } from "./sign-out-button";
+import { PublicSiteButton } from "./public-site-button";
 import { AppLogo } from "@/components/app-logo";
 import type { AppRole } from "@/lib/auth";
 
@@ -82,7 +83,8 @@ export function MobileNav({
 
         <SidebarNav role={role} />
 
-        <div className="mt-auto">
+        <div className="mt-auto space-y-2">
+          <PublicSiteButton />
           <SignOutButton />
         </div>
       </div>

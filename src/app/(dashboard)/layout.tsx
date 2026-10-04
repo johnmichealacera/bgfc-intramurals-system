@@ -5,6 +5,7 @@ import { authOptions, type AppRole } from "@/lib/auth";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
+import { PublicSiteButton } from "@/components/dashboard/public-site-button";
 import { AppLogo } from "@/components/app-logo";
 
 function getInitials(name: string) {
@@ -75,7 +76,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <SidebarNav role={role} />
           </div>
 
-          <SignOutButton />
+          <div className="space-y-2">
+            <PublicSiteButton />
+            <SignOutButton />
+          </div>
         </aside>
 
         <main className="relative flex-1 min-w-0">
