@@ -26,6 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { eventCategoryLabel } from "@/lib/format";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
 import type { Participant, Team } from "@/lib/types";
 
@@ -305,6 +306,7 @@ export default function ParticipantsPage() {
                   <TableHead>Year Level</TableHead>
                   <TableHead>Gender</TableHead>
                   <TableHead>Team</TableHead>
+                  <TableHead>Events</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -334,6 +336,25 @@ export default function ParticipantsPage() {
                         </span>
                       ) : (
                         <span className="text-muted-foreground">Unassigned</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {!participant.eventEntries?.length ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <div className="flex max-w-55 flex-wrap gap-1">
+                          {participant.eventEntries.map((entry) => {
+                            const ev = entry.eventTeam.sportEvent;
+                            const label = ev.category
+                              ? `${ev.name} · ${eventCategoryLabel(ev.category)}`
+                              : ev.name;
+                            return (
+                              <Badge key={entry.id} variant="secondary" className="text-[10px]">
+                                {label}
+                              </Badge>
+                            );
+                          })}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell>

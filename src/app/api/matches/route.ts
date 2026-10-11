@@ -48,6 +48,22 @@ export async function POST(req: Request) {
     assertRole(session, ["ADMIN"]);
 
     const body = matchSchema.parse(await req.json());
+
+    const enrolled = await db.eventTeam.findMany({
+      where: {
+        sportEventId: body.sportEventId,
+        teamId: { in: [body.homeTeamId, body.awayTeamId] },
+      },
+      select: { teamId: true },
+    });
+    const enrolledIds = new Set(enrolled.map((e) => e.teamId));
+    if (!enrolledIds.has(body.homeTeamId) || !enrolledIds.has(body.awayTeamId)) {
+      return NextResponse.json(
+        { error: "Both teams must be enrolled in this event before scheduling a match." },
+        { status: 400 },
+      );
+    }
+
     const match = await db.match.create({
       data: body,
       include: { homeTeam: true, awayTeam: true },

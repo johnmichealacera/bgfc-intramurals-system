@@ -27,7 +27,18 @@ export async function GET(req: Request) {
 
     const participants = await db.participant.findMany({
       where: { seasonId },
-      include: { team: { select: { id: true, name: true, colorHex: true } } },
+      include: {
+        team: { select: { id: true, name: true, colorHex: true } },
+        eventEntries: {
+          include: {
+            eventTeam: {
+              include: {
+                sportEvent: { select: { id: true, name: true, type: true, category: true, status: true } },
+              },
+            },
+          },
+        },
+      },
       orderBy: { fullName: "asc" },
     });
     return NextResponse.json(participants);

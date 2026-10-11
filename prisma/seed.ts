@@ -34,9 +34,40 @@ async function clearSeasonData(seasonId: string) {
   await db.eventPlacement.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.match.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.eventTabulator.deleteMany({ where: { sportEvent: { seasonId } } });
+  await db.eventParticipant.deleteMany({ where: { eventTeam: { sportEvent: { seasonId } } } });
+  await db.eventTeam.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.participant.deleteMany({ where: { seasonId } });
   await db.sportEvent.deleteMany({ where: { seasonId } });
   await db.team.deleteMany({ where: { seasonId } });
+}
+
+async function enrollTeams(
+  sportEventId: string,
+  teamIds: string[],
+  genderFilter?: "MALE" | "FEMALE",
+  rosterLimit = 3,
+) {
+  for (const teamId of teamIds) {
+    const eventTeam = await db.eventTeam.create({
+      data: { sportEventId, teamId },
+    });
+    const roster = await db.participant.findMany({
+      where: {
+        teamId,
+        ...(genderFilter ? { gender: genderFilter } : {}),
+      },
+      orderBy: { fullName: "asc" },
+      take: rosterLimit,
+    });
+    if (roster.length) {
+      await db.eventParticipant.createMany({
+        data: roster.map((p) => ({
+          eventTeamId: eventTeam.id,
+          participantId: p.id,
+        })),
+      });
+    }
+  }
 }
 
 async function main() {
@@ -233,6 +264,18 @@ async function main() {
     data: { sportEventId: chess.id, userId: tabulator2.id },
   });
 
+  const allTeamIds = teams.map((t) => t.id);
+  await enrollTeams(basketball.id, allTeamIds, "MALE", 3);
+  await enrollTeams(volleyball.id, allTeamIds, "FEMALE", 3);
+  await enrollTeams(tableTennis.id, allTeamIds, "MALE", 2);
+  await enrollTeams(
+    dancesport.id,
+    [phoenix.id, knights.id, falcons.id, titans.id, dragons.id],
+    undefined,
+    4,
+  );
+  await enrollTeams(chess.id, [falcons.id, phoenix.id, titans.id, warriors.id], undefined, 2);
+
   await db.match.createMany({
     data: [
       {
@@ -403,13 +446,16 @@ async function main() {
     ],
   });
 
-  const [teamCount, matchCount, liveCount, placementCount, eventCount] = await Promise.all([
-    db.team.count({ where: { seasonId: season.id } }),
-    db.match.count({ where: { sportEvent: { seasonId: season.id } } }),
-    db.match.count({ where: { status: "LIVE", sportEvent: { seasonId: season.id } } }),
-    db.eventPlacement.count({ where: { sportEvent: { seasonId: season.id } } }),
-    db.sportEvent.count({ where: { seasonId: season.id } }),
-  ]);
+  const [teamCount, matchCount, liveCount, placementCount, eventCount, eventTeamCount, eventRosterCount] =
+    await Promise.all([
+      db.team.count({ where: { seasonId: season.id } }),
+      db.match.count({ where: { sportEvent: { seasonId: season.id } } }),
+      db.match.count({ where: { status: "LIVE", sportEvent: { seasonId: season.id } } }),
+      db.eventPlacement.count({ where: { sportEvent: { seasonId: season.id } } }),
+      db.sportEvent.count({ where: { seasonId: season.id } }),
+      db.eventTeam.count({ where: { sportEvent: { seasonId: season.id } } }),
+      db.eventParticipant.count({ where: { eventTeam: { sportEvent: { seasonId: season.id } } } }),
+    ]);
 
   console.log("Seed complete — demo data ready for presentation");
   console.log(`  Season:        ${season.name} (active)`);
@@ -417,6 +463,7 @@ async function main() {
   console.log(`  Teams:         ${teamCount}`);
   console.log(`  Participants:  ${participantCount}`);
   console.log(`  Events:        ${eventCount} (basketball live, volleyball done, dancesport done, …)`);
+  console.log(`  Event teams:   ${eventTeamCount} enrollments / ${eventRosterCount} roster spots`);
   console.log(`  Matches:       ${matchCount} (${liveCount} LIVE)`);
   console.log(`  Placements:    ${placementCount} (feeds overall standings)`);
 }

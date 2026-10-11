@@ -22,6 +22,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       include: {
         matches: { include: { homeTeam: true, awayTeam: true, winnerTeam: true }, orderBy: { scheduledAt: "asc" } },
         placements: { include: { team: true }, orderBy: { placement: "asc" } },
+        eventTeams: {
+          include: {
+            team: true,
+            participants: {
+              include: { participant: true },
+              orderBy: { participant: { fullName: "asc" } },
+            },
+          },
+          orderBy: { team: { name: "asc" } },
+        },
         tabulators: { include: { user: { select: { id: true, name: true, email: true } } } },
         season: true,
       },

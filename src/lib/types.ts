@@ -15,6 +15,9 @@ export type Team = {
 };
 
 export type ParticipantGender = "MALE" | "FEMALE";
+export type SportEventType = "TEAM_VS_TEAM" | "PLACEMENT";
+export type SportEventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
+export type SportEventCategory = "MEN" | "WOMEN" | "MIXED";
 
 export type Participant = {
   id: string;
@@ -25,11 +28,35 @@ export type Participant = {
   yearLevel: string | null;
   gender: ParticipantGender | null;
   team?: { id: string; name: string; colorHex: string } | null;
+  eventEntries?: {
+    id: string;
+    eventTeam: {
+      id: string;
+      sportEvent: { id: string; name: string; type: SportEventType; category: SportEventCategory | null; status: SportEventStatus };
+    };
+  }[];
+};
+
+export type EventTeamEntry = {
+  id: string;
+  sportEventId: string;
+  teamId: string;
+  team: Team;
+  participants: {
+    id: string;
+    participantId: string;
+    participant: Participant;
+  }[];
 };
 
 export type TeamDetail = Team & {
   season: Season;
   participants: Participant[];
+  eventTeams?: {
+    id: string;
+    sportEvent: { id: string; name: string; type: SportEventType; category: SportEventCategory | null; status: SportEventStatus };
+    participants: { id: string; participantId: string }[];
+  }[];
 };
 
 export type AppUser = {
@@ -40,10 +67,6 @@ export type AppUser = {
   isActive: boolean;
   createdAt: string;
 };
-
-export type SportEventType = "TEAM_VS_TEAM" | "PLACEMENT";
-export type SportEventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
-export type SportEventCategory = "MEN" | "WOMEN" | "MIXED";
 
 export type Sport = {
   id: string;
@@ -67,6 +90,7 @@ export type SportEventDetail = SportEvent & {
   season: Season;
   matches: Match[];
   placements: EventPlacement[];
+  eventTeams: EventTeamEntry[];
   tabulators: { id: string; userId: string; user: { id: string; name: string; email: string } }[];
 };
 

@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Users } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, Users, Trophy } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ConfirmDeleteDialog } from "@/components/dashboard/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { eventCategoryLabel } from "@/lib/format";
 import type { Participant, TeamDetail } from "@/lib/types";
 
 const schema = z.object({
@@ -143,6 +145,30 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
           <span className="size-6 shrink-0 rounded-full ring-1 ring-black/10" style={{ backgroundColor: team.colorHex }} />
         }
       />
+
+      <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
+        <CardHeader>
+          <CardTitle className="text-base">Event Entries</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!team.eventTeams?.length ? (
+            <p className="text-sm text-muted-foreground">This team is not enrolled in any events yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {team.eventTeams.map((et) => (
+                <Link key={et.id} href={`/events/${et.sportEvent.id}`}>
+                  <Badge variant="secondary" className="gap-1.5 py-1.5 hover:bg-secondary/80">
+                    <Trophy className="size-3" />
+                    {et.sportEvent.name}
+                    {et.sportEvent.category ? ` · ${eventCategoryLabel(et.sportEvent.category)}` : ""}
+                    <span className="text-muted-foreground">({et.participants.length} rostered)</span>
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
         <CardHeader className="flex flex-row items-center justify-between">

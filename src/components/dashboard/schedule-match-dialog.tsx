@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import type { SportEvent, Team } from "@/lib/types";
+import type { EventTeamEntry, SportEvent, Team } from "@/lib/types";
 
 const schema = z
   .object({
@@ -38,7 +38,7 @@ type FormValues = z.infer<typeof schema>;
 
 export function ScheduleMatchDialog({
   events,
-  teams,
+  teams: fallbackTeams,
   defaultEventId,
 }: {
   events: SportEvent[];
@@ -52,15 +52,28 @@ export function ScheduleMatchDialog({
     defaultValues: { sportEventId: defaultEventId ?? "", homeTeamId: "", awayTeamId: "", scheduledAt: "", venue: "" },
   });
 
-  // Lets each <Select items={...}> show the event/team name instead of its raw id.
-  const eventItems = Object.fromEntries(events.map((e) => [e.id, e.name]));
-  const teamItems = Object.fromEntries(teams.map((t) => [t.id, t.name]));
-
-  // A team already picked on one side can't also be picked on the other.
+  const sportEventId = form.watch("sportEventId");
   const homeTeamId = form.watch("homeTeamId");
   const awayTeamId = form.watch("awayTeamId");
+
+  const { data: eventTeams } = useQuery({
+    queryKey: ["event-teams", sportEventId],
+    queryFn: () => apiFetch<EventTeamEntry[]>(`/api/events/${sportEventId}/teams`),
+    enabled: open && !!sportEventId,
+  });
+
+  const teams = (eventTeams ?? []).map((et) => et.team);
+  const eventItems = Object.fromEntries(events.map((e) => [e.id, e.name]));
+  const teamItems = Object.fromEntries(teams.map((t) => [t.id, t.name]));
   const homeTeamOptions = teams.filter((t) => t.id !== awayTeamId);
   const awayTeamOptions = teams.filter((t) => t.id !== homeTeamId);
+
+  useEffect(() => {
+    if (!sportEventId) return;
+    const enrolledIds = new Set(teams.map((t) => t.id));
+    if (homeTeamId && !enrolledIds.has(homeTeamId)) form.setValue("homeTeamId", "");
+    if (awayTeamId && !enrolledIds.has(awayTeamId)) form.setValue("awayTeamId", "");
+  }, [sportEventId, teams, homeTeamId, awayTeamId, form]);
 
   const createMutation = useMutation({
     mutationFn: (values: FormValues) => apiFetch("/api/matches", { method: "POST", body: JSON.stringify(values) }),
@@ -76,7 +89,14 @@ export function ScheduleMatchDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button className="gap-2" disabled={!teams.length || !events.length} />}>
+      <DialogTrigger
+        render={
+          <Button
+            className="gap-2"
+            disabled={!events.length || (!defaultEventId && !fallbackTeams.length)}
+          />
+        }
+      >
         <Plus className="size-4" />
         Schedule Match
       </DialogTrigger>
@@ -90,7 +110,11 @@ export function ScheduleMatchDialog({
               <Label>Event</Label>
               <Select
                 value={form.watch("sportEventId")}
-                onValueChange={(v) => form.setValue("sportEventId", v ?? "")}
+                onValueChange={(v) => {
+                  form.setValue("sportEventId", v ?? "");
+                  form.setValue("homeTeamId", "");
+                  form.setValue("awayTeamId", "");
+                }}
                 items={eventItems}
               >
                 <SelectTrigger className="w-full">
@@ -109,6 +133,11 @@ export function ScheduleMatchDialog({
               )}
             </div>
           )}
+          {sportEventId && teams.length === 0 && (
+            <p className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              Enroll at least two teams in this event before scheduling a match.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Home team</Label>
@@ -116,6 +145,7 @@ export function ScheduleMatchDialog({
                 value={form.watch("homeTeamId")}
                 onValueChange={(v) => form.setValue("homeTeamId", v ?? "")}
                 items={teamItems}
+                disabled={!sportEventId || teams.length === 0}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select team" />
@@ -135,6 +165,7 @@ export function ScheduleMatchDialog({
                 value={form.watch("awayTeamId")}
                 onValueChange={(v) => form.setValue("awayTeamId", v ?? "")}
                 items={teamItems}
+                disabled={!sportEventId || teams.length === 0}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select team" />
@@ -164,7 +195,7 @@ export function ScheduleMatchDialog({
             <Input id="venue" placeholder="Main Gymnasium" {...form.register("venue")} />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={createMutation.isPending}>
+            <Button type="submit" disabled={createMutation.isPending || teams.length < 2}>
               {createMutation.isPending ? "Scheduling..." : "Schedule"}
             </Button>
           </DialogFooter>

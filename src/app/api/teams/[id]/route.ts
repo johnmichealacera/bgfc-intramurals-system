@@ -21,7 +21,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const { id } = await params;
     const team = await db.team.findUniqueOrThrow({
       where: { id },
-      include: { season: true, participants: { orderBy: { fullName: "asc" } } },
+      include: {
+        season: true,
+        participants: { orderBy: { fullName: "asc" } },
+        eventTeams: {
+          include: {
+            sportEvent: { select: { id: true, name: true, type: true, category: true, status: true } },
+            participants: { select: { id: true, participantId: true } },
+          },
+          orderBy: { sportEvent: { name: "asc" } },
+        },
+      },
     });
     return NextResponse.json(team);
   } catch (error) {

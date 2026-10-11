@@ -140,6 +140,7 @@ model Team {
   wonMatches   Match[]          @relation("MatchWinnerTeam")
   placements   EventPlacement[]
   participants Participant[]
+  eventTeams   EventTeam[]
 
   @@unique([seasonId, name])
   @@index([seasonId])
@@ -162,8 +163,9 @@ model Participant {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  season Season @relation(fields: [seasonId], references: [id], onDelete: Restrict)
-  team   Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  season       Season             @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  eventEntries EventParticipant[]
 
   @@index([seasonId])
   @@index([teamId])
@@ -183,11 +185,45 @@ model SportEvent {
 
   season     Season           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
   tabulators EventTabulator[]
+  eventTeams EventTeam[]
   matches    Match[]
   placements EventPlacement[]
 
   @@index([seasonId, status])
   @@map("sport_events")
+}
+
+model EventTeam {
+  id           String   @id @default(cuid())
+  sportEventId String
+  teamId       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sportEvent   SportEvent         @relation(fields: [sportEventId], references: [id], onDelete: Cascade)
+  team         Team               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  participants EventParticipant[]
+
+  @@unique([sportEventId, teamId])
+  @@index([sportEventId])
+  @@index([teamId])
+  @@map("event_teams")
+}
+
+model EventParticipant {
+  id            String   @id @default(cuid())
+  eventTeamId   String
+  participantId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  eventTeam   EventTeam   @relation(fields: [eventTeamId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([eventTeamId, participantId])
+  @@index([eventTeamId])
+  @@index([participantId])
+  @@map("event_participants")
 }
 
 model EventTabulator {
