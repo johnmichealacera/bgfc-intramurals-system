@@ -4,9 +4,11 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users } from "lucide-react";
+import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
+import { ScheduleSessionDialog } from "@/components/dashboard/schedule-session-dialog";
+import { ConfirmDeleteDialog } from "@/components/dashboard/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -124,6 +126,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       toast.success("Participant removed from event roster");
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to remove participant"),
+  });
+
+  const deleteScheduleMutation = useMutation({
+    mutationFn: (scheduleId: string) =>
+      apiFetch(`/api/events/${id}/schedules/${scheduleId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event", id] });
+      toast.success("Session removed");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to remove session"),
   });
 
   const [placementDrafts, setPlacementDrafts] = useState<Record<string, string>>({});
@@ -392,6 +404,59 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </CardContent>
       </Card>
+
+      {event.type === "PLACEMENT" && (
+        <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Public Schedule</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Announce when this placement event happens. Sessions appear on the public schedule — not on the
+                Scoreboard. Enter results below with Finalize Results.
+              </p>
+            </div>
+            <ScheduleSessionDialog eventId={event.id} />
+          </CardHeader>
+          <CardContent className="p-0">
+            {(event.schedules ?? []).length === 0 ? (
+              <p className="px-6 pb-6 text-sm text-muted-foreground">No sessions scheduled yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Session</TableHead>
+                    <TableHead>When</TableHead>
+                    <TableHead>Venue</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {event.schedules.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-2">
+                          <CalendarDays className="size-3.5 text-muted-foreground" />
+                          {s.title || "Session"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{format.dateTime(s.scheduledAt)}</TableCell>
+                      <TableCell className="text-muted-foreground">{s.venue || "—"}</TableCell>
+                      <TableCell>
+                        <ConfirmDeleteDialog
+                          title="Remove this session?"
+                          description="It will no longer appear on the public schedule."
+                          pending={deleteScheduleMutation.isPending}
+                          onConfirm={() => deleteScheduleMutation.mutate(s.id)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {event.type === "TEAM_VS_TEAM" && (
         <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">

@@ -13,7 +13,11 @@ export async function GET(req: Request) {
 
     const events = await db.sportEvent.findMany({
       where: { seasonId },
-      include: { placements: { include: { team: true }, orderBy: { placement: "asc" } } },
+      include: {
+        placements: { include: { team: true }, orderBy: { placement: "asc" } },
+        schedules: { orderBy: { scheduledAt: "asc" } },
+        _count: { select: { matches: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(events);

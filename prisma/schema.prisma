@@ -186,11 +186,28 @@ model SportEvent {
   season     Season           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
   tabulators EventTabulator[]
   eventTeams EventTeam[]
+  schedules  EventSchedule[]
   matches    Match[]
   placements EventPlacement[]
 
   @@index([seasonId, status])
   @@map("sport_events")
+}
+
+model EventSchedule {
+  id           String   @id @default(cuid())
+  sportEventId String
+  title        String?
+  scheduledAt  DateTime
+  venue        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sportEvent SportEvent @relation(fields: [sportEventId], references: [id], onDelete: Cascade)
+
+  @@index([sportEventId])
+  @@index([scheduledAt])
+  @@map("event_schedules")
 }
 
 model EventTeam {

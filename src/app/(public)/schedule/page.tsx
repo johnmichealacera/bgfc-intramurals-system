@@ -6,7 +6,7 @@ import { CalendarDays, Swords, ListOrdered } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
-import { eventCategoryLabel } from "@/lib/format";
+import { eventCategoryLabel, format } from "@/lib/format";
 import type { SportEvent, SportEventStatus } from "@/lib/types";
 
 const statusStyles: Record<SportEventStatus, string> = {
@@ -56,6 +56,17 @@ export default function SchedulePage() {
                 {event.name}
                 {event.category && <span className="ml-1.5 font-normal text-muted-foreground">({eventCategoryLabel(event.category)})</span>}
               </p>
+              {event.type === "PLACEMENT" && event.schedules?.[0] && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Next: {format.dateTime(event.schedules[0].scheduledAt)}
+                  {event.schedules[0].venue ? ` · ${event.schedules[0].venue}` : ""}
+                </p>
+              )}
+              {event.type === "TEAM_VS_TEAM" && event._count?.matches != null && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {event._count.matches} match{event._count.matches === 1 ? "" : "es"}
+                </p>
+              )}
             </Link>
           ))}
         </div>

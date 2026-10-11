@@ -75,6 +75,14 @@ export type Sport = {
   isDefault: boolean;
 };
 
+export type EventSchedule = {
+  id: string;
+  sportEventId: string;
+  title: string | null;
+  scheduledAt: string;
+  venue: string | null;
+};
+
 export type SportEvent = {
   id: string;
   seasonId: string;
@@ -83,12 +91,14 @@ export type SportEvent = {
   category: SportEventCategory | null;
   status: SportEventStatus;
   description: string | null;
+  schedules?: EventSchedule[];
   _count?: { matches: number; placements: number; tabulators: number };
 };
 
 export type SportEventDetail = SportEvent & {
   season: Season;
   matches: Match[];
+  schedules: EventSchedule[];
   placements: EventPlacement[];
   eventTeams: EventTeamEntry[];
   tabulators: { id: string; userId: string; user: { id: string; name: string; email: string } }[];

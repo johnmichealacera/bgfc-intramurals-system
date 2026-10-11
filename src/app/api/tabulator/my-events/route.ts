@@ -13,6 +13,7 @@ export async function GET() {
       where: { tabulators: { some: { userId: session!.user.id } } },
       include: {
         matches: { include: { homeTeam: true, awayTeam: true }, orderBy: { scheduledAt: "asc" } },
+        schedules: { orderBy: { scheduledAt: "asc" } },
       },
       orderBy: { createdAt: "desc" },
     });

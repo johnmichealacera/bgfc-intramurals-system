@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Trophy, BookOpen } from "lucide-react";
+import { Trophy, BookOpen, CalendarDays } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
@@ -66,13 +66,42 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
                     <p className="font-medium">
                       {m.homeTeam.name} vs {m.awayTeam.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">{format.dateTime(m.scheduledAt)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format.dateTime(m.scheduledAt)}
+                      {m.venue ? ` · ${m.venue}` : ""}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="text-lg font-semibold tabular-nums">
                       {m.homeScore} – {m.awayScore}
                     </p>
                     <Badge className={matchStatusStyles[m.status]}>{m.status}</Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {event.type === "PLACEMENT" && (
+        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
+          <div className="flex items-center gap-2 border-b border-border/60 px-5 py-3">
+            <CalendarDays className="size-4 text-primary" />
+            <p className="text-sm font-semibold">Schedule</p>
+          </div>
+          {(event.schedules ?? []).length === 0 ? (
+            <p className="p-6 text-sm text-muted-foreground">Schedule will be posted soon.</p>
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {event.schedules.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                  <div>
+                    <p className="font-medium">{s.title || "Session"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format.dateTime(s.scheduledAt)}
+                      {s.venue ? ` · ${s.venue}` : ""}
+                    </p>
                   </div>
                 </li>
               ))}

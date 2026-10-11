@@ -36,6 +36,7 @@ async function clearSeasonData(seasonId: string) {
   await db.eventTabulator.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.eventParticipant.deleteMany({ where: { eventTeam: { sportEvent: { seasonId } } } });
   await db.eventTeam.deleteMany({ where: { sportEvent: { seasonId } } });
+  await db.eventSchedule.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.participant.deleteMany({ where: { seasonId } });
   await db.sportEvent.deleteMany({ where: { seasonId } });
   await db.team.deleteMany({ where: { seasonId } });
@@ -276,6 +277,32 @@ async function main() {
   );
   await enrollTeams(chess.id, [falcons.id, phoenix.id, titans.id, warriors.id], undefined, 2);
 
+  await db.eventSchedule.createMany({
+    data: [
+      {
+        id: "seed-sched-dance-finals",
+        sportEventId: dancesport.id,
+        title: "Finals",
+        scheduledAt: daysFrom(baseDay, -2, 15, 0),
+        venue: "Auditorium",
+      },
+      {
+        id: "seed-sched-chess-prelims",
+        sportEventId: chess.id,
+        title: "Prelims",
+        scheduledAt: daysFrom(baseDay, 0, 13, 0),
+        venue: "Library Hall",
+      },
+      {
+        id: "seed-sched-chess-finals",
+        sportEventId: chess.id,
+        title: "Finals",
+        scheduledAt: daysFrom(baseDay, 1, 13, 0),
+        venue: "Library Hall",
+      },
+    ],
+  });
+
   await db.match.createMany({
     data: [
       {
@@ -446,7 +473,7 @@ async function main() {
     ],
   });
 
-  const [teamCount, matchCount, liveCount, placementCount, eventCount, eventTeamCount, eventRosterCount] =
+  const [teamCount, matchCount, liveCount, placementCount, eventCount, eventTeamCount, eventRosterCount, scheduleCount] =
     await Promise.all([
       db.team.count({ where: { seasonId: season.id } }),
       db.match.count({ where: { sportEvent: { seasonId: season.id } } }),
@@ -455,6 +482,7 @@ async function main() {
       db.sportEvent.count({ where: { seasonId: season.id } }),
       db.eventTeam.count({ where: { sportEvent: { seasonId: season.id } } }),
       db.eventParticipant.count({ where: { eventTeam: { sportEvent: { seasonId: season.id } } } }),
+      db.eventSchedule.count({ where: { sportEvent: { seasonId: season.id } } }),
     ]);
 
   console.log("Seed complete — demo data ready for presentation");
@@ -464,6 +492,7 @@ async function main() {
   console.log(`  Participants:  ${participantCount}`);
   console.log(`  Events:        ${eventCount} (basketball live, volleyball done, dancesport done, …)`);
   console.log(`  Event teams:   ${eventTeamCount} enrollments / ${eventRosterCount} roster spots`);
+  console.log(`  Schedules:     ${scheduleCount} placement sessions (public hype)`);
   console.log(`  Matches:       ${matchCount} (${liveCount} LIVE)`);
   console.log(`  Placements:    ${placementCount} (feeds overall standings)`);
 }

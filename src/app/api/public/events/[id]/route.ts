@@ -9,6 +9,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       include: {
         matches: { include: { homeTeam: true, awayTeam: true, winnerTeam: true }, orderBy: { scheduledAt: "asc" } },
+        schedules: { orderBy: { scheduledAt: "asc" } },
         placements: { include: { team: true }, orderBy: { placement: "asc" } },
       },
     });
