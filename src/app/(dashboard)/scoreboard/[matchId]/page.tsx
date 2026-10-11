@@ -111,6 +111,7 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
 
   const isLive = match.status === "LIVE";
   const isFinished = match.status === "FINISHED";
+  const canScore = isLive || isFinished;
 
   return (
     <div className="space-y-6">
@@ -157,19 +158,26 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
         </div>
       </div>
 
+      {isFinished && (
+        <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          This match is finished. You can still correct the score if it was stopped early or entered incorrectly —
+          the winner updates automatically.
+        </p>
+      )}
+
       <div className="flex flex-col gap-4 sm:flex-row">
         <TeamPanel
           label={match.homeTeam.name}
           score={match.homeScore}
           colorHex={match.homeTeam.colorHex}
-          disabled={!isLive || scoreMutation.isPending}
+          disabled={!canScore || scoreMutation.isPending}
           onDelta={(delta) => scoreMutation.mutate({ team: "HOME", delta })}
         />
         <TeamPanel
           label={match.awayTeam.name}
           score={match.awayScore}
           colorHex={match.awayTeam.colorHex}
-          disabled={!isLive || scoreMutation.isPending}
+          disabled={!canScore || scoreMutation.isPending}
           onDelta={(delta) => scoreMutation.mutate({ team: "AWAY", delta })}
         />
       </div>

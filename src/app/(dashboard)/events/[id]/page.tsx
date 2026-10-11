@@ -492,18 +492,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         <Badge className={matchStatusStyles[m.status]}>{m.status}</Badge>
                       </TableCell>
                       <TableCell>
-                        {m.status !== "FINISHED" && (
-                          <Button
-                            render={<Link href={`/scoreboard/${m.id}`} />}
-                            nativeButton={false}
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                          >
-                            <Radio className="size-3.5" />
-                            Control
-                          </Button>
-                        )}
+                        <Button
+                          render={<Link href={`/scoreboard/${m.id}`} />}
+                          nativeButton={false}
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                        >
+                          <Radio className="size-3.5" />
+                          {m.status === "FINISHED" ? "Correct" : "Control"}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

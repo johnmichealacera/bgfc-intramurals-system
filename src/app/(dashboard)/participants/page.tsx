@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, UserPlus } from "lucide-react";
+import { Plus, Pencil, UserPlus, Search } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ConfirmDeleteDialog } from "@/components/dashboard/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ export default function ParticipantsPage() {
   const [open, setOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
   const [teamFilter, setTeamFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
   const { seasons, seasonItems, seasonId, setSeasonId } = useSelectedSeason();
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULT_VALUES });
 
@@ -70,10 +71,23 @@ export default function ParticipantsPage() {
 
   const filteredParticipants = useMemo(() => {
     if (!participants) return [];
-    if (teamFilter === "ALL") return participants;
-    if (teamFilter === "UNASSIGNED") return participants.filter((p) => !p.teamId);
-    return participants.filter((p) => p.teamId === teamFilter);
-  }, [participants, teamFilter]);
+    const query = search.trim().toLowerCase();
+    return participants.filter((p) => {
+      if (teamFilter === "UNASSIGNED" && p.teamId) return false;
+      if (teamFilter !== "ALL" && teamFilter !== "UNASSIGNED" && p.teamId !== teamFilter) return false;
+      if (!query) return true;
+      const haystack = [
+        p.fullName,
+        p.course,
+        p.yearLevel ?? "",
+        p.team?.name ?? "",
+        ...(p.eventEntries ?? []).map((e) => e.eventTeam.sportEvent.name),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [participants, teamFilter, search]);
 
   const createMutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -193,6 +207,15 @@ export default function ParticipantsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="relative w-full min-w-44 sm:w-56">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search participants..."
+                className="pl-8"
+              />
+            </div>
             <Dialog
               open={open}
               onOpenChange={(next) => {
@@ -292,9 +315,15 @@ export default function ParticipantsPage() {
           ) : !filteredParticipants.length ? (
             <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
               <UserPlus className="mb-3 size-8 text-muted-foreground" />
-              <p className="text-sm font-medium">No participants yet</p>
+              <p className="text-sm font-medium">
+                {participants?.length ? "No matching participants" : "No participants yet"}
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {seasonId ? "Add a participant to get started." : "Activate a season to begin adding participants."}
+                {participants?.length
+                  ? "Try a different search or team filter."
+                  : seasonId
+                    ? "Add a participant to get started."
+                    : "Activate a season to begin adding participants."}
               </p>
             </div>
           ) : (
