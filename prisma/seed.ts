@@ -3,6 +3,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
 import { SPORTS_GUIDELINES } from "../src/lib/sports-guidelines";
+import { getEnrollmentBlockReason } from "../src/lib/enrollment-rules";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
@@ -48,6 +49,7 @@ async function enrollTeams(
   genderFilter?: "MALE" | "FEMALE",
   rosterLimit = 3,
 ) {
+  const sportEvent = await db.sportEvent.findUniqueOrThrow({ where: { id: sportEventId } });
   for (const teamId of teamIds) {
     const eventTeam = await db.eventTeam.create({
       data: { sportEventId, teamId },
@@ -57,12 +59,25 @@ async function enrollTeams(
         teamId,
         ...(genderFilter ? { gender: genderFilter } : {}),
       },
+      include: {
+        eventEntries: {
+          include: {
+            eventTeam: {
+              include: {
+                sportEvent: { select: { id: true, name: true, type: true, category: true, status: true } },
+              },
+            },
+          },
+        },
+      },
       orderBy: { fullName: "asc" },
-      take: rosterLimit,
     });
-    if (roster.length) {
+    const eligible = roster
+      .filter((p) => !getEnrollmentBlockReason(p, sportEvent))
+      .slice(0, rosterLimit);
+    if (eligible.length) {
       await db.eventParticipant.createMany({
-        data: roster.map((p) => ({
+        data: eligible.map((p) => ({
           eventTeamId: eventTeam.id,
           participantId: p.id,
         })),

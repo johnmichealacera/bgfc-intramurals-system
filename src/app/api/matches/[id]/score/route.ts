@@ -13,7 +13,6 @@ const scoreSchema = z
   .refine((data) => data.delta !== 0, { message: "delta must not be zero" });
 
 const matchInclude = { homeTeam: true, awayTeam: true, winnerTeam: true, sportEvent: true } as const;
-const scoreableStatuses = ["LIVE", "FINISHED"] as const;
 
 /**
  * Atomic increment/decrement — never read-then-write. A negative delta uses a
@@ -21,32 +20,26 @@ const scoreableStatuses = ["LIVE", "FINISHED"] as const;
  * affected there is treated as a floor no-op, not an error.
  */
 async function applyDelta(id: string, team: "HOME" | "AWAY", delta: number, userId: string) {
-  const status = { in: [...scoreableStatuses] };
   if (team === "HOME") {
     return delta > 0
       ? db.match.updateMany({
-          where: { id, status },
+          where: { id, status: "LIVE" },
           data: { homeScore: { increment: delta }, updatedByUserId: userId },
         })
       : db.match.updateMany({
-          where: { id, status, homeScore: { gte: -delta } },
+          where: { id, status: "LIVE", homeScore: { gte: -delta } },
           data: { homeScore: { decrement: -delta }, updatedByUserId: userId },
         });
   }
   return delta > 0
     ? db.match.updateMany({
-        where: { id, status },
+        where: { id, status: "LIVE" },
         data: { awayScore: { increment: delta }, updatedByUserId: userId },
       })
     : db.match.updateMany({
-        where: { id, status, awayScore: { gte: -delta } },
+        where: { id, status: "LIVE", awayScore: { gte: -delta } },
         data: { awayScore: { decrement: -delta }, updatedByUserId: userId },
       });
-}
-
-function winnerFromScores(homeScore: number, awayScore: number, homeTeamId: string, awayTeamId: string) {
-  if (homeScore === awayScore) return null;
-  return homeScore > awayScore ? homeTeamId : awayTeamId;
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -62,33 +55,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     if (result.count === 0) {
       const fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
-      if (!scoreableStatuses.includes(fresh.status as (typeof scoreableStatuses)[number])) {
-        return NextResponse.json(
-          { error: "Scores can only be updated while the match is live or finished." },
-          { status: 409 },
-        );
+      if (fresh.status === "FINISHED") {
+        return NextResponse.json({ error: "Finished matches are locked and cannot be scored." }, { status: 409 });
+      }
+      if (fresh.status === "POSTPONED") {
+        return NextResponse.json({ error: "Postponed matches are locked until they are resumed." }, { status: 409 });
+      }
+      if (fresh.status !== "LIVE") {
+        return NextResponse.json({ error: "Match is not live." }, { status: 409 });
       }
       return NextResponse.json(fresh);
     }
 
-    let fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
-
-    if (fresh.status === "FINISHED") {
-      const winnerTeamId = winnerFromScores(
-        fresh.homeScore,
-        fresh.awayScore,
-        fresh.homeTeamId,
-        fresh.awayTeamId,
-      );
-      if (fresh.winnerTeamId !== winnerTeamId) {
-        fresh = await db.match.update({
-          where: { id },
-          data: { winnerTeamId },
-          include: matchInclude,
-        });
-      }
-    }
-
+    const fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
     return NextResponse.json(fresh);
   } catch (error) {
     return apiError(error);

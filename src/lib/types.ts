@@ -92,6 +92,7 @@ export type SportEvent = {
   status: SportEventStatus;
   description: string | null;
   schedules?: EventSchedule[];
+  matches?: Match[];
   _count?: { matches: number; placements: number; tabulators: number };
 };
 

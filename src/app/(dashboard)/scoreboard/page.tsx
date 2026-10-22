@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { Radio } from "lucide-react";
+import { Radio, Lock } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,18 +41,15 @@ export default function ScoreboardListPage() {
       ? (tabulatorEvents ?? []).flatMap((e) => e.matches.map((m) => ({ ...m, sportEvent: e })))
       : (adminMatches ?? []);
 
-  const active = matches.filter((m) => m.status !== "FINISHED");
+  const active = matches.filter((m) => m.status === "SCHEDULED" || m.status === "LIVE");
+  const postponed = matches.filter((m) => m.status === "POSTPONED");
   const finished = matches.filter((m) => m.status === "FINISHED");
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Scoreboard"
-        description={
-          role === "TABULATOR"
-            ? "Score live matches, or open a finished match to correct the score."
-            : "Start or score live matches, and correct finished match scores when needed."
-        }
+        description="Score live matches only. Postponed and finished games stay visible but locked."
       />
 
       {isLoading ? (
@@ -71,41 +68,59 @@ export default function ScoreboardListPage() {
         </div>
       ) : (
         <>
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold tracking-tight">Active</h2>
-            {!active.length ? (
-              <p className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
-                No live or upcoming matches right now.
-              </p>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {active.map((m) => (
-                  <MatchCard key={m.id} match={m} />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {finished.length > 0 && (
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-sm font-semibold tracking-tight">Finished</h2>
-                <p className="text-xs text-muted-foreground">Open a finished match to correct its score if needed.</p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {finished.map((m) => (
-                  <MatchCard key={m.id} match={m} />
-                ))}
-              </div>
-            </section>
-          )}
+          <MatchSection title="Active" empty="No live or upcoming matches right now." matches={active} />
+          <MatchSection
+            title="Postponed"
+            hint="These games are locked until they are resumed."
+            empty="No postponed matches."
+            matches={postponed}
+          />
+          <MatchSection
+            title="Finished"
+            hint="Finished scores are locked and cannot be changed."
+            matches={finished}
+          />
         </>
       )}
     </div>
   );
 }
 
+function MatchSection({
+  title,
+  hint,
+  empty,
+  matches,
+}: {
+  title: string;
+  hint?: string;
+  empty?: string;
+  matches: Match[];
+}) {
+  if (!matches.length && !empty) return null;
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      </div>
+      {!matches.length ? (
+        <p className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
+          {empty}
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {matches.map((m) => (
+            <MatchCard key={m.id} match={m} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function MatchCard({ match: m }: { match: Match }) {
+  const locked = m.status === "FINISHED" || m.status === "POSTPONED";
   return (
     <Link href={`/scoreboard/${m.id}`}>
       <Card className="h-full border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
@@ -114,7 +129,10 @@ function MatchCard({ match: m }: { match: Match }) {
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {m.sportEvent?.name}
             </span>
-            <Badge className={statusStyles[m.status] ?? ""}>{m.status}</Badge>
+            <Badge className={statusStyles[m.status] ?? ""}>
+              {locked && <Lock className="mr-1 size-3" />}
+              {m.status}
+            </Badge>
           </div>
           <p className="font-semibold tracking-tight">
             {m.homeTeam.name} vs {m.awayTeam.name}

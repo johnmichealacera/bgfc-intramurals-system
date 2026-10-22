@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays } from "lucide-react";
+import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays, Search, Lock } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
 import { ScheduleSessionDialog } from "@/components/dashboard/schedule-session-dialog";
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { format, eventCategoryLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
+import { getEnrollmentBlockReason, MAX_EVENT_ENTRIES } from "@/lib/enrollment-rules";
 import type { AppUser, Participant, SportEventDetail, Team } from "@/lib/types";
 
 const matchStatusStyles: Record<string, string> = {
@@ -32,6 +33,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const queryClient = useQueryClient();
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+  const [rosterQuery, setRosterQuery] = useState("");
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -113,6 +115,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["event", id] });
+      queryClient.invalidateQueries({ queryKey: ["participants"] });
       toast.success("Participant added to event roster");
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to add participant"),
@@ -273,7 +276,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <div>
             <CardTitle className="text-base">Entered Teams</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              Enroll teams in this event, then pick which participants compete on each roster.
+              Enroll teams, then add players by name. Each player can enter at most {MAX_EVENT_ENTRIES} events,
+              and cannot cross Men&apos;s and Women&apos;s divisions.
             </p>
           </div>
           {availableTeams.length > 0 && (
@@ -328,7 +332,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setExpandedTeamId(expanded ? null : et.teamId)}
+                      onClick={() => {
+                        setExpandedTeamId(expanded ? null : et.teamId);
+                        setRosterQuery("");
+                      }}
                     >
                       {expanded ? "Hide roster" : "Manage roster"}
                     </Button>
@@ -369,32 +376,63 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                       )}
 
-                      {availableParticipants.length > 0 ? (
-                        <Select
-                          onValueChange={(value) =>
-                            typeof value === "string" &&
-                            addRosterMutation.mutate({ teamId: et.teamId, participantId: value })
-                          }
-                          items={Object.fromEntries(availableParticipants.map((p) => [p.id, p.fullName]))}
-                        >
-                          <SelectTrigger className="w-72">
-                            <UserPlus className="size-4 text-muted-foreground" />
-                            <SelectValue placeholder="Add participant to roster" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableParticipants.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.fullName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
+                      {teamParticipants.length === 0 ? (
                         <p className="text-xs text-muted-foreground">
-                          {teamParticipants.length === 0
-                            ? "This team has no participants yet. Add them under Teams."
-                            : "All of this team’s participants are already on the event roster."}
+                          This team has no participants yet. Add them under Teams.
                         </p>
+                      ) : availableParticipants.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          All of this team’s participants are already on the event roster.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="relative max-w-md">
+                            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              value={rosterQuery}
+                              onChange={(e) => setRosterQuery(e.target.value)}
+                              placeholder="Type a player name to add..."
+                              className="pl-8"
+                            />
+                          </div>
+                          <ul className="max-h-56 overflow-y-auto rounded-lg border border-border/60 bg-background/70">
+                            {availableParticipants
+                              .filter((p) => p.fullName.toLowerCase().includes(rosterQuery.trim().toLowerCase()))
+                              .map((p) => {
+                                const blockReason = getEnrollmentBlockReason(p, event);
+                                return (
+                                  <li key={p.id} className="border-b border-border/50 last:border-b-0">
+                                    <button
+                                      type="button"
+                                      disabled={!!blockReason || addRosterMutation.isPending}
+                                      onClick={() => addRosterMutation.mutate({ teamId: et.teamId, participantId: p.id })}
+                                      className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      <span>
+                                        <span className="font-medium">{p.fullName}</span>
+                                        <span className="ml-2 text-xs text-muted-foreground">
+                                          {(p.eventEntries?.length ?? 0)}/{MAX_EVENT_ENTRIES} events
+                                        </span>
+                                      </span>
+                                      {blockReason ? (
+                                        <span className="max-w-64 text-right text-xs text-destructive">{blockReason}</span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-xs text-primary">
+                                          <UserPlus className="size-3" />
+                                          Add
+                                        </span>
+                                      )}
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            {availableParticipants.filter((p) =>
+                              p.fullName.toLowerCase().includes(rosterQuery.trim().toLowerCase()),
+                            ).length === 0 && (
+                              <li className="px-3 py-2 text-xs text-muted-foreground">No matching names.</li>
+                            )}
+                          </ul>
+                        </div>
                       )}
                     </div>
                   )}
@@ -499,8 +537,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                           variant="outline"
                           className="gap-1.5"
                         >
-                          <Radio className="size-3.5" />
-                          {m.status === "FINISHED" ? "Correct" : "Control"}
+                          {m.status === "FINISHED" || m.status === "POSTPONED" ? (
+                            <Lock className="size-3.5" />
+                          ) : (
+                            <Radio className="size-3.5" />
+                          )}
+                          {m.status === "FINISHED" ? "View" : m.status === "POSTPONED" ? "Locked" : "Control"}
                         </Button>
                       </TableCell>
                     </TableRow>

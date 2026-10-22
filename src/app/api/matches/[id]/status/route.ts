@@ -5,7 +5,7 @@ import { authOptions, assertEventAccess } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
 
-const actionSchema = z.object({ action: z.enum(["START", "FINISH"]) });
+const actionSchema = z.object({ action: z.enum(["START", "FINISH", "POSTPONE"]) });
 
 const matchInclude = { homeTeam: true, awayTeam: true, winnerTeam: true, sportEvent: true } as const;
 
@@ -26,6 +26,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       });
       if (result.count === 0) {
         return NextResponse.json({ error: "Only scheduled or postponed matches can be started." }, { status: 409 });
+      }
+      const fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
+      return NextResponse.json(fresh);
+    }
+
+    if (action === "POSTPONE") {
+      const result = await db.match.updateMany({
+        where: { id, status: { in: ["SCHEDULED", "LIVE"] } },
+        data: { status: "POSTPONED", updatedByUserId: userId },
+      });
+      if (result.count === 0) {
+        return NextResponse.json({ error: "Only scheduled or live matches can be postponed." }, { status: 409 });
       }
       const fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
       return NextResponse.json(fresh);

@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Trophy, BookOpen, CalendarDays } from "lucide-react";
+import { Trophy, BookOpen, CalendarDays, Lock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
@@ -60,25 +60,38 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
             <p className="p-6 text-sm text-muted-foreground">No matches scheduled yet.</p>
           ) : (
             <ul className="divide-y divide-border/60">
-              {event.matches.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-4 px-5 py-4">
-                  <div>
-                    <p className="font-medium">
-                      {m.homeTeam.name} vs {m.awayTeam.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format.dateTime(m.scheduledAt)}
-                      {m.venue ? ` · ${m.venue}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-lg font-semibold tabular-nums">
-                      {m.homeScore} – {m.awayScore}
-                    </p>
-                    <Badge className={matchStatusStyles[m.status]}>{m.status}</Badge>
-                  </div>
-                </li>
-              ))}
+              {event.matches.map((m) => {
+                const locked = m.status === "POSTPONED" || m.status === "FINISHED";
+                return (
+                  <li
+                    key={m.id}
+                    className={`flex items-center justify-between gap-4 px-5 py-4 ${
+                      m.status === "POSTPONED" ? "bg-amber-500/6" : ""
+                    }`}
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {m.homeTeam.name} vs {m.awayTeam.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format.dateTime(m.scheduledAt)}
+                        {m.venue ? ` · ${m.venue}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {m.status !== "POSTPONED" && (
+                        <p className="text-lg font-semibold tabular-nums">
+                          {m.homeScore} – {m.awayScore}
+                        </p>
+                      )}
+                      <Badge className={matchStatusStyles[m.status]}>
+                        {locked && <Lock className="mr-1 size-3" />}
+                        {m.status}
+                      </Badge>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

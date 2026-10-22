@@ -29,7 +29,7 @@ import {
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
 import { eventCategoryLabel } from "@/lib/format";
-import type { Sport, SportEvent, SportEventStatus } from "@/lib/types";
+import type { Sport, SportEvent, SportEventCategory, SportEventStatus } from "@/lib/types";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -150,7 +150,7 @@ export default function EventsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Events"
-        description="Manage the sports and events competing for the season's overall standings."
+        description="Manage season events by division (Men's, Women's, Mixed). Each player can enter at most 3 events and cannot cross Men's and Women's categories."
         actions={
           <div className="flex items-center gap-2">
             <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
@@ -284,63 +284,80 @@ export default function EventsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
-            <div
-              key={event.id}
-              role="link"
-              tabIndex={0}
-              onClick={() => router.push(`/events/${event.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") router.push(`/events/${event.id}`);
-              }}
-              className="cursor-pointer"
-            >
-              <Card className="h-full border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
-                <CardContent className="flex h-full flex-col gap-3 p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      {event.type === "TEAM_VS_TEAM" ? <Swords className="size-4" /> : <ListOrdered className="size-4" />}
-                      <span className="text-xs font-medium uppercase tracking-wider">
-                        {event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}
-                      </span>
+        <div className="space-y-8">
+          {(["MEN", "WOMEN", "MIXED", "OTHER"] as const).map((group) => {
+            const grouped = events.filter((event) => (event.category ?? "OTHER") === group);
+            if (!grouped.length) return null;
+            const heading: Record<SportEventCategory | "OTHER", string> = {
+              MEN: "Men's Division",
+              WOMEN: "Women's Division",
+              MIXED: "Mixed Division",
+              OTHER: "Open / Unspecified",
+            };
+            return (
+              <section key={group} className="space-y-3">
+                <h2 className="text-sm font-semibold tracking-tight">{heading[group]}</h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {grouped.map((event) => (
+                    <div
+                      key={event.id}
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => router.push(`/events/${event.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") router.push(`/events/${event.id}`);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Card className="h-full border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
+                        <CardContent className="flex h-full flex-col gap-3 p-5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              {event.type === "TEAM_VS_TEAM" ? <Swords className="size-4" /> : <ListOrdered className="size-4" />}
+                              <span className="text-xs font-medium uppercase tracking-wider">
+                                {event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Badge className={statusStyles[event.status]}>{event.status}</Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 text-muted-foreground hover:text-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditDialog(event);
+                                }}
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold tracking-tight">{event.name}</p>
+                            {event.category && (
+                              <Badge variant="outline" className="text-[10px]">
+                                {eventCategoryLabel(event.category)}
+                              </Badge>
+                            )}
+                          </div>
+                          {event._count && (
+                            <p className="mt-auto text-xs text-muted-foreground">
+                              {event.type === "TEAM_VS_TEAM"
+                                ? `${event._count.matches} match${event._count.matches === 1 ? "" : "es"}`
+                                : `${event._count.placements} result${event._count.placements === 1 ? "" : "s"}`}
+                              {" · "}
+                              {event._count.tabulators} tabulator{event._count.tabulators === 1 ? "" : "s"}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Badge className={statusStyles[event.status]}>{event.status}</Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-muted-foreground hover:text-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditDialog(event);
-                        }}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold tracking-tight">{event.name}</p>
-                    {event.category && (
-                      <Badge variant="outline" className="text-[10px]">
-                        {eventCategoryLabel(event.category)}
-                      </Badge>
-                    )}
-                  </div>
-                  {event._count && (
-                    <p className="mt-auto text-xs text-muted-foreground">
-                      {event.type === "TEAM_VS_TEAM"
-                        ? `${event._count.matches} match${event._count.matches === 1 ? "" : "es"}`
-                        : `${event._count.placements} result${event._count.placements === 1 ? "" : "s"}`}
-                      {" · "}
-                      {event._count.tabulators} tabulator{event._count.tabulators === 1 ? "" : "s"}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          ))}
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>

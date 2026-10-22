@@ -4,7 +4,7 @@ import { use } from "react";
 import useSWR from "swr";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Play, Flag, MapPin, Clock } from "lucide-react";
+import { Minus, Plus, Play, Flag, MapPin, Clock, Lock, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -86,13 +86,19 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
   });
 
   const statusMutation = useMutation({
-    mutationFn: (action: "START" | "FINISH") =>
+    mutationFn: (action: "START" | "FINISH" | "POSTPONE") =>
       apiFetch<Match>(`/api/matches/${matchId}/status`, { method: "PATCH", body: JSON.stringify({ action }) }),
     onSuccess: (updated) => {
       mutate(updated, { revalidate: false });
       queryClient.invalidateQueries({ queryKey: ["matches"] });
       queryClient.invalidateQueries({ queryKey: ["event", updated.sportEventId] });
-      toast.success(updated.status === "LIVE" ? "Match started" : "Match finished");
+      const messages = {
+        LIVE: "Match started",
+        FINISHED: "Match finished and locked",
+        POSTPONED: "Match postponed and locked",
+        SCHEDULED: "Match updated",
+      };
+      toast.success(messages[updated.status]);
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update match status"),
   });
@@ -111,7 +117,8 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
 
   const isLive = match.status === "LIVE";
   const isFinished = match.status === "FINISHED";
-  const canScore = isLive || isFinished;
+  const isPostponed = match.status === "POSTPONED";
+  const isLocked = isFinished || isPostponed;
 
   return (
     <div className="space-y-6">
@@ -133,35 +140,63 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge className={isLive ? "bg-destructive/10 text-destructive" : isFinished ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className={isLive ? "bg-destructive/10 text-destructive" : isFinished ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : isPostponed ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground"}>
             {isLive && <span className="mr-1.5 inline-block size-1.5 animate-pulse rounded-full bg-destructive" />}
+            {isLocked && <Lock className="mr-1 size-3" />}
             {match.status}
           </Badge>
-          {!isLive && !isFinished && (
+          {match.status === "SCHEDULED" && (
+            <>
+              <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("START")}>
+                <Play className="size-4" />
+                Start Match
+              </Button>
+              <Button variant="outline" className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("POSTPONE")}>
+                <Pause className="size-4" />
+                Postpone
+              </Button>
+            </>
+          )}
+          {isPostponed && (
             <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("START")}>
               <Play className="size-4" />
-              Start Match
+              Resume Match
             </Button>
           )}
           {isLive && (
-            <Button
-              variant="outline"
-              className="gap-2"
-              disabled={statusMutation.isPending}
-              onClick={() => statusMutation.mutate("FINISH")}
-            >
-              <Flag className="size-4" />
-              Finish Match
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={statusMutation.isPending}
+                onClick={() => statusMutation.mutate("POSTPONE")}
+              >
+                <Pause className="size-4" />
+                Postpone
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={statusMutation.isPending}
+                onClick={() => statusMutation.mutate("FINISH")}
+              >
+                <Flag className="size-4" />
+                Finish Match
+              </Button>
+            </>
           )}
         </div>
       </div>
 
       {isFinished && (
         <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          This match is finished. You can still correct the score if it was stopped early or entered incorrectly —
-          the winner updates automatically.
+          This match is finished and locked. Scores can no longer be changed.
+        </p>
+      )}
+      {isPostponed && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">
+          This match is postponed and locked. Scoring stays disabled until it is resumed.
         </p>
       )}
 
@@ -170,14 +205,14 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
           label={match.homeTeam.name}
           score={match.homeScore}
           colorHex={match.homeTeam.colorHex}
-          disabled={!canScore || scoreMutation.isPending}
+          disabled={!isLive || scoreMutation.isPending}
           onDelta={(delta) => scoreMutation.mutate({ team: "HOME", delta })}
         />
         <TeamPanel
           label={match.awayTeam.name}
           score={match.awayScore}
           colorHex={match.awayTeam.colorHex}
-          disabled={!canScore || scoreMutation.isPending}
+          disabled={!isLive || scoreMutation.isPending}
           onDelta={(delta) => scoreMutation.mutate({ team: "AWAY", delta })}
         />
       </div>

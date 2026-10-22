@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { eventCategoryLabel } from "@/lib/format";
+import { MAX_EVENT_ENTRIES } from "@/lib/enrollment-rules";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
 import type { Participant, Team } from "@/lib/types";
 
@@ -178,7 +179,7 @@ export default function ParticipantsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Participants"
-        description="Manage every participant in the selected season, with or without a team."
+        description="Manage every participant in the selected season. Each player can enter at most 3 events."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
@@ -369,9 +370,15 @@ export default function ParticipantsPage() {
                     </TableCell>
                     <TableCell>
                       {!participant.eventEntries?.length ? (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">0/{MAX_EVENT_ENTRIES}</span>
                       ) : (
                         <div className="flex max-w-55 flex-wrap gap-1">
+                          <Badge
+                            variant={participant.eventEntries.length >= MAX_EVENT_ENTRIES ? "destructive" : "outline"}
+                            className="text-[10px]"
+                          >
+                            {participant.eventEntries.length}/{MAX_EVENT_ENTRIES}
+                          </Badge>
                           {participant.eventEntries.map((entry) => {
                             const ev = entry.eventTeam.sportEvent;
                             const label = ev.category

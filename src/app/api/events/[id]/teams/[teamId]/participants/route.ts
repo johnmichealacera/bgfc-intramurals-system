@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions, assertRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
+import { getEnrollmentBlockReason } from "@/lib/enrollment-rules";
 
 const addSchema = z.object({
   participantId: z.string().min(1),
@@ -49,12 +50,30 @@ export async function POST(
       include: { sportEvent: true },
     });
 
-    const participant = await db.participant.findUniqueOrThrow({ where: { id: participantId } });
+    const participant = await db.participant.findUniqueOrThrow({
+      where: { id: participantId },
+      include: {
+        eventEntries: {
+          include: {
+            eventTeam: {
+              include: {
+                sportEvent: { select: { id: true, name: true, type: true, category: true, status: true } },
+              },
+            },
+          },
+        },
+      },
+    });
     if (participant.teamId !== teamId) {
       return NextResponse.json({ error: "Participant must belong to the enrolled team." }, { status: 400 });
     }
     if (participant.seasonId !== eventTeam.sportEvent.seasonId) {
       return NextResponse.json({ error: "Participant must belong to the same season as the event." }, { status: 400 });
+    }
+
+    const blockReason = getEnrollmentBlockReason(participant, eventTeam.sportEvent);
+    if (blockReason) {
+      return NextResponse.json({ error: blockReason }, { status: 409 });
     }
 
     const entry = await db.eventParticipant.create({

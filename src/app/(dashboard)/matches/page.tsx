@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radio, Swords } from "lucide-react";
+import { Radio, Swords, Lock } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
 import { Button } from "@/components/ui/button";
@@ -110,7 +110,10 @@ export default function MatchesPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{format.dateTime(m.scheduledAt)}</TableCell>
                     <TableCell>
-                      <Badge className={matchStatusStyles[m.status]}>{m.status}</Badge>
+                      <Badge className={matchStatusStyles[m.status]}>
+                        {(m.status === "FINISHED" || m.status === "POSTPONED") && <Lock className="mr-1 size-3" />}
+                        {m.status}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Button
@@ -120,8 +123,12 @@ export default function MatchesPage() {
                         variant="outline"
                         className="gap-1.5"
                       >
-                        <Radio className="size-3.5" />
-                        {m.status === "FINISHED" ? "Correct" : "Control"}
+                        {m.status === "FINISHED" || m.status === "POSTPONED" ? (
+                          <Lock className="size-3.5" />
+                        ) : (
+                          <Radio className="size-3.5" />
+                        )}
+                        {m.status === "FINISHED" ? "View" : m.status === "POSTPONED" ? "Locked" : "Control"}
                       </Button>
                     </TableCell>
                   </TableRow>
