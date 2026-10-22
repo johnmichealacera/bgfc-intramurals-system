@@ -4,7 +4,8 @@ import { use } from "react";
 import useSWR from "swr";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Play, Flag, MapPin, Clock, Lock, Pause } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Minus, Plus, Play, Flag, MapPin, Clock, Lock, Pause, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +71,8 @@ function TeamPanel({
 
 export default function ScoreboardControlPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = use(params);
+  const { data: session } = useSession();
+  const role = session?.user.role;
   const queryClient = useQueryClient();
 
   const { data: match, isLoading, mutate } = useSWR<Match>(`/api/matches/${matchId}`, fetcher, {
@@ -86,19 +89,22 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
   });
 
   const statusMutation = useMutation({
-    mutationFn: (action: "START" | "FINISH" | "POSTPONE") =>
+    mutationFn: (action: "START" | "FINISH" | "POSTPONE" | "REQUEST_RESUME" | "APPROVE_RESUME" | "REJECT_RESUME") =>
       apiFetch<Match>(`/api/matches/${matchId}/status`, { method: "PATCH", body: JSON.stringify({ action }) }),
-    onSuccess: (updated) => {
+    onSuccess: (updated, action) => {
       mutate(updated, { revalidate: false });
       queryClient.invalidateQueries({ queryKey: ["matches"] });
       queryClient.invalidateQueries({ queryKey: ["event", updated.sportEventId] });
-      const messages = {
-        LIVE: "Match started",
-        FINISHED: "Match finished and locked",
-        POSTPONED: "Match postponed and locked",
-        SCHEDULED: "Match updated",
+      queryClient.invalidateQueries({ queryKey: ["tabulator", "my-events"] });
+      const messages: Record<string, string> = {
+        START: "Match started",
+        FINISH: "Match finished and locked",
+        POSTPONE: "Match postponed and locked",
+        REQUEST_RESUME: "Resume requested. Waiting for admin approval.",
+        APPROVE_RESUME: "Resume approved. The tabulator can start the match.",
+        REJECT_RESUME: "Resume request rejected.",
       };
-      toast.success(messages[updated.status]);
+      toast.success(messages[action] ?? "Match updated");
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update match status"),
   });
@@ -158,7 +164,32 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
               </Button>
             </>
           )}
-          {isPostponed && (
+          {isPostponed && role === "ADMIN" && (
+            <>
+              {match.resumeRequestedAt && !match.resumeApprovedAt && (
+                <>
+                  <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("APPROVE_RESUME")}>
+                    <Check className="size-4" />
+                    Approve Resume
+                  </Button>
+                  <Button variant="outline" className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("REJECT_RESUME")}>
+                    <X className="size-4" />
+                    Reject
+                  </Button>
+                </>
+              )}
+              <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("START")}>
+                <Play className="size-4" />
+                Resume Match
+              </Button>
+            </>
+          )}
+          {isPostponed && role === "TABULATOR" && !match.resumeApprovedAt && !match.resumeRequestedAt && (
+            <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("REQUEST_RESUME")}>
+              Request Resume
+            </Button>
+          )}
+          {isPostponed && role === "TABULATOR" && match.resumeApprovedAt && (
             <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("START")}>
               <Play className="size-4" />
               Resume Match
@@ -196,7 +227,13 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
       )}
       {isPostponed && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">
-          This match is postponed and locked. Scoring stays disabled until it is resumed.
+          {match.resumeApprovedAt
+            ? `Admin approved the resume${match.resumeApprovedBy?.name ? ` (${match.resumeApprovedBy.name})` : ""}. The tabulator can start the match.`
+            : match.resumeRequestedAt
+              ? `Resume requested${match.resumeRequestedBy?.name ? ` by ${match.resumeRequestedBy.name}` : ""}. Waiting for admin approval.`
+              : role === "TABULATOR"
+                ? "This match is postponed and locked. Request admin approval before you can resume it."
+                : "This match is postponed and locked. An admin can resume it, or approve a tabulator request."}
         </p>
       )}
 

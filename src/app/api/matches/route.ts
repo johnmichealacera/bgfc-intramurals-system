@@ -33,7 +33,14 @@ export async function GET(req: Request) {
         ...(eventId ? { sportEventId: eventId } : {}),
         ...(role === "TABULATOR" ? { sportEvent: { tabulators: { some: { userId } } } } : {}),
       },
-      include: { homeTeam: true, awayTeam: true, winnerTeam: true, sportEvent: true },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        winnerTeam: true,
+        sportEvent: true,
+        resumeRequestedBy: { select: { id: true, name: true } },
+        resumeApprovedBy: { select: { id: true, name: true } },
+      },
       orderBy: { scheduledAt: "asc" },
     });
     return NextResponse.json(matches);

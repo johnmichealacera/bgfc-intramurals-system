@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, Trophy, Radio, Crown, CalendarClock, ArrowRight } from "lucide-react";
+import { Shield, Trophy, Radio, Crown, CalendarClock, ArrowRight, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,12 @@ export default function DashboardPage() {
     enabled: role === "ADMIN",
   });
 
+  const { data: adminMatches } = useQuery({
+    queryKey: ["matches", "all"],
+    queryFn: () => apiFetch<Match[]>("/api/matches"),
+    enabled: role === "ADMIN",
+  });
+
   const { data: myEvents, isLoading: loadingMyEvents } = useQuery({
     queryKey: ["tabulator", "my-events"],
     queryFn: () => apiFetch<(SportEvent & { matches: Match[]; schedules: EventSchedule[] })[]>("/api/tabulator/my-events"),
@@ -86,6 +92,9 @@ export default function DashboardPage() {
   const tiedLeaders = standings?.filter((s) => s.totalPoints === leader?.totalPoints) ?? [];
   const leaderLabel = tiedLeaders.length > 1 ? `${tiedLeaders.length} teams tied` : (leader?.team.name ?? "—");
   const myLiveMatches = (myEvents ?? []).flatMap((e) => e.matches).filter((m) => m.status === "LIVE");
+  const pendingResumes = (adminMatches ?? []).filter(
+    (m) => m.status === "POSTPONED" && m.resumeRequestedAt && !m.resumeApprovedAt,
+  );
 
   return (
     <div className="space-y-6">
@@ -145,6 +154,38 @@ export default function DashboardPage() {
             </>
           )}
         </section>
+      )}
+
+      {role === "ADMIN" && pendingResumes.length > 0 && (
+        <Card className="border-amber-500/30 bg-card/85 shadow-lg ring-1 ring-amber-500/20 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Resume requests</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Tabulators asked to resume these postponed matches. Approve them before they can go live.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-border/60">
+              {pendingResumes.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium tracking-tight">
+                      {m.homeTeam.name} vs {m.awayTeam.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {m.sportEvent?.name}
+                      {m.resumeRequestedBy?.name ? ` · requested by ${m.resumeRequestedBy.name}` : ""}
+                    </p>
+                  </div>
+                  <Button size="sm" className="shrink-0 gap-1.5" render={<Link href={`/scoreboard/${m.id}`} />} nativeButton={false}>
+                    <Check className="size-3.5" />
+                    Review
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       )}
 
       {role === "TABULATOR" && (

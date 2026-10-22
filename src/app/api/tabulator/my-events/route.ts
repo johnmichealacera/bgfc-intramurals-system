@@ -12,7 +12,15 @@ export async function GET() {
     const events = await db.sportEvent.findMany({
       where: { tabulators: { some: { userId: session!.user.id } } },
       include: {
-        matches: { include: { homeTeam: true, awayTeam: true }, orderBy: { scheduledAt: "asc" } },
+        matches: {
+          include: {
+            homeTeam: true,
+            awayTeam: true,
+            resumeRequestedBy: { select: { id: true, name: true } },
+            resumeApprovedBy: { select: { id: true, name: true } },
+          },
+          orderBy: { scheduledAt: "asc" },
+        },
         schedules: { orderBy: { scheduledAt: "asc" } },
       },
       orderBy: { createdAt: "desc" },

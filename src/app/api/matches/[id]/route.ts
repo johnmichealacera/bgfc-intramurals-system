@@ -18,7 +18,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const { id } = await params;
     const match = await db.match.findUniqueOrThrow({
       where: { id },
-      include: { homeTeam: true, awayTeam: true, winnerTeam: true, sportEvent: true },
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        winnerTeam: true,
+        sportEvent: true,
+        resumeRequestedBy: { select: { id: true, name: true } },
+        resumeApprovedBy: { select: { id: true, name: true } },
+      },
     });
     return NextResponse.json(match);
   } catch (error) {

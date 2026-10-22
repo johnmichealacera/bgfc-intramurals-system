@@ -1,13 +1,29 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions, assertEventAccess } from "@/lib/auth";
+import { authOptions, assertEventAccess, assertRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
 
-const actionSchema = z.object({ action: z.enum(["START", "FINISH", "POSTPONE"]) });
+const actionSchema = z.object({
+  action: z.enum(["START", "FINISH", "POSTPONE", "REQUEST_RESUME", "APPROVE_RESUME", "REJECT_RESUME"]),
+});
 
-const matchInclude = { homeTeam: true, awayTeam: true, winnerTeam: true, sportEvent: true } as const;
+const matchInclude = {
+  homeTeam: true,
+  awayTeam: true,
+  winnerTeam: true,
+  sportEvent: true,
+  resumeRequestedBy: { select: { id: true, name: true } },
+  resumeApprovedBy: { select: { id: true, name: true } },
+} as const;
+
+const clearResume = {
+  resumeRequestedAt: null,
+  resumeApprovedAt: null,
+  resumeRequestedByUserId: null,
+  resumeApprovedByUserId: null,
+};
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,11 +34,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const match = await db.match.findUniqueOrThrow({ where: { id } });
     await assertEventAccess(session, match.sportEventId);
     const userId = session!.user.id;
+    const role = session!.user.role;
 
     if (action === "START") {
+      if (match.status === "POSTPONED" && role === "TABULATOR" && !match.resumeApprovedAt) {
+        return NextResponse.json(
+          { error: "An admin must approve this resume before you can start the match." },
+          { status: 409 },
+        );
+      }
+
       const result = await db.match.updateMany({
         where: { id, status: { in: ["SCHEDULED", "POSTPONED"] } },
-        data: { status: "LIVE", updatedByUserId: userId },
+        data: { status: "LIVE", updatedByUserId: userId, ...clearResume },
       });
       if (result.count === 0) {
         return NextResponse.json({ error: "Only scheduled or postponed matches can be started." }, { status: 409 });
@@ -34,7 +58,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (action === "POSTPONE") {
       const result = await db.match.updateMany({
         where: { id, status: { in: ["SCHEDULED", "LIVE"] } },
-        data: { status: "POSTPONED", updatedByUserId: userId },
+        data: { status: "POSTPONED", updatedByUserId: userId, ...clearResume },
       });
       if (result.count === 0) {
         return NextResponse.json({ error: "Only scheduled or live matches can be postponed." }, { status: 409 });
@@ -43,7 +67,57 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json(fresh);
     }
 
-    // FINISH — idempotent: re-finishing an already-FINISHED match is a no-op, never recomputes the winner.
+    if (action === "REQUEST_RESUME") {
+      assertRole(session, ["TABULATOR"]);
+      if (match.status !== "POSTPONED") {
+        return NextResponse.json({ error: "Only postponed matches can request a resume." }, { status: 409 });
+      }
+      if (match.resumeApprovedAt) {
+        const fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
+        return NextResponse.json(fresh);
+      }
+      const updated = await db.match.update({
+        where: { id },
+        data: {
+          resumeRequestedAt: new Date(),
+          resumeRequestedByUserId: userId,
+          resumeApprovedAt: null,
+          resumeApprovedByUserId: null,
+        },
+        include: matchInclude,
+      });
+      return NextResponse.json(updated);
+    }
+
+    if (action === "APPROVE_RESUME") {
+      assertRole(session, ["ADMIN"]);
+      if (match.status !== "POSTPONED") {
+        return NextResponse.json({ error: "Only postponed matches can be approved to resume." }, { status: 409 });
+      }
+      if (!match.resumeRequestedAt) {
+        return NextResponse.json({ error: "No resume request is pending for this match." }, { status: 409 });
+      }
+      const updated = await db.match.update({
+        where: { id },
+        data: { resumeApprovedAt: new Date(), resumeApprovedByUserId: userId },
+        include: matchInclude,
+      });
+      return NextResponse.json(updated);
+    }
+
+    if (action === "REJECT_RESUME") {
+      assertRole(session, ["ADMIN"]);
+      if (match.status !== "POSTPONED") {
+        return NextResponse.json({ error: "Only postponed matches can have a resume request rejected." }, { status: 409 });
+      }
+      const updated = await db.match.update({
+        where: { id },
+        data: clearResume,
+        include: matchInclude,
+      });
+      return NextResponse.json(updated);
+    }
+
     const finished = await db.$transaction(async (tx) => {
       const current = await tx.match.findUniqueOrThrow({ where: { id } });
       if (current.status !== "LIVE") {
@@ -59,7 +133,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
       return tx.match.update({
         where: { id },
-        data: { status: "FINISHED", winnerTeamId, updatedByUserId: userId },
+        data: { status: "FINISHED", winnerTeamId, updatedByUserId: userId, ...clearResume },
         include: matchInclude,
       });
     });

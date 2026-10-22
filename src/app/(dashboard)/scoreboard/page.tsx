@@ -71,7 +71,7 @@ export default function ScoreboardListPage() {
           <MatchSection title="Active" empty="No live or upcoming matches right now." matches={active} />
           <MatchSection
             title="Postponed"
-            hint="These games are locked until they are resumed."
+            hint="Locked until resumed. Tabulators need admin approval before they can start again."
             empty="No postponed matches."
             matches={postponed}
           />
@@ -141,6 +141,12 @@ function MatchCard({ match: m }: { match: Match }) {
             <p className="text-sm tabular-nums text-muted-foreground">
               {m.homeScore} – {m.awayScore}
             </p>
+          ) : null}
+          {m.status === "POSTPONED" && m.resumeApprovedAt ? (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">Approved to resume</p>
+          ) : null}
+          {m.status === "POSTPONED" && m.resumeRequestedAt && !m.resumeApprovedAt ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400">Waiting for admin approval</p>
           ) : null}
           <p className="mt-auto text-xs text-muted-foreground">{format.dateTime(m.scheduledAt)}</p>
         </CardContent>

@@ -118,6 +118,10 @@ export type Match = {
   winnerTeamId: string | null;
   scheduledAt: string;
   venue: string | null;
+  resumeRequestedAt: string | null;
+  resumeApprovedAt: string | null;
+  resumeRequestedBy?: { id: string; name: string } | null;
+  resumeApprovedBy?: { id: string; name: string } | null;
   homeTeam: Team;
   awayTeam: Team;
   winnerTeam: Team | null;
