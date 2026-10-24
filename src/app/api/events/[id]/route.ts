@@ -30,6 +30,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           },
           orderBy: { scheduledAt: "asc" },
         },
+        bracketGames: {
+          include: {
+            homeTeam: true,
+            awayTeam: true,
+            winnerTeam: true,
+            match: { include: { homeTeam: true, awayTeam: true, winnerTeam: true } },
+          },
+          orderBy: [{ round: "asc" }, { position: "asc" }],
+        },
         schedules: { orderBy: { scheduledAt: "asc" } },
         placements: { include: { team: true }, orderBy: { placement: "asc" } },
         eventTeams: {

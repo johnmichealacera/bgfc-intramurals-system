@@ -142,6 +142,9 @@ function MatchCard({ match: m }: { match: Match }) {
               {m.homeScore} – {m.awayScore}
             </p>
           ) : null}
+          {m.status === "POSTPONED" && m.postponeReason ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">Reason: {m.postponeReason}</p>
+          ) : null}
           {m.status === "POSTPONED" && m.resumeApprovedAt ? (
             <p className="text-xs text-emerald-600 dark:text-emerald-400">Approved to resume</p>
           ) : null}

@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays, Search, Lock } from "lucide-react";
+import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays, Search, Lock, GitBranch } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
 import { ScheduleSessionDialog } from "@/components/dashboard/schedule-session-dialog";
@@ -17,9 +17,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { format, eventCategoryLabel } from "@/lib/format";
+import { format, eventCategoryLabel, eventTypeLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import { getEnrollmentBlockReason, MAX_EVENT_ENTRIES } from "@/lib/enrollment-rules";
+import { EventBracket } from "@/components/event-bracket";
 import type { AppUser, Participant, SportEventDetail, Team } from "@/lib/types";
 
 const matchStatusStyles: Record<string, string> = {
@@ -163,6 +164,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to finalize results"),
   });
 
+  const generateBracketMutation = useMutation({
+    mutationFn: () => apiFetch(`/api/events/${id}/bracket`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event", id] });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      toast.success("Elimination bracket generated");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to generate bracket"),
+  });
+
   if (isLoading || !event) {
     return (
       <div className="space-y-6">
@@ -175,7 +186,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const unresolvedMatches = event.matches.filter((m) => m.status !== "FINISHED").length;
   const canFinalize = event.type === "PLACEMENT" || unresolvedMatches === 0;
-  const assignedUserIds = new Set(event.tabulators.map((t) => t.userId));
+  const tabulators = event.tabulators ?? [];
+  const assignedUserIds = new Set(tabulators.map((t) => t.userId));
   const availableTabulators = (users ?? []).filter((u) => u.role === "TABULATOR" && !assignedUserIds.has(u.id));
   const guideline = findGuidelineForEventName(event.name);
   const enrolledTeamIds = new Set(event.eventTeams.map((et) => et.teamId));
@@ -197,10 +209,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     <div className="space-y-6">
       <PageHeader
         title={event.name}
-        description={event.season.name}
+        description={event.season?.name}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="outline">{event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}</Badge>
+            <Badge variant="outline">{eventTypeLabel(event.type)}</Badge>
             {event.category && <Badge variant="outline">{eventCategoryLabel(event.category)}</Badge>}
             <Badge>{event.status}</Badge>
             {event.status === "UPCOMING" && (
@@ -232,11 +244,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <CardTitle className="text-base">Assigned Tabulators</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {event.tabulators.length === 0 ? (
+          {tabulators.length === 0 ? (
             <p className="text-sm text-muted-foreground">No tabulators assigned. The admin can still score matches.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {event.tabulators.map((t) => (
+              {tabulators.map((t) => (
                 <Badge key={t.id} variant="secondary" className="gap-2 py-1.5 pl-3">
                   {t.user.name}
                   <button
@@ -443,13 +455,45 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         </CardContent>
       </Card>
 
+      <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
+        <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Elimination Bracket</CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {event.type === "TEAM_VS_TEAM"
+                ? "Public single-elimination tree. Winners advance when a match is finished."
+                : "Public finals field for this solo event. Rankings appear after finalize."}
+            </p>
+          </div>
+          {event.type === "TEAM_VS_TEAM" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={generateBracketMutation.isPending || event.eventTeams.length < 2}
+              onClick={() => generateBracketMutation.mutate()}
+            >
+              <GitBranch className="size-3.5" />
+              {generateBracketMutation.isPending ? "Generating..." : "Generate Bracket"}
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          <EventBracket
+            games={event.bracketGames ?? []}
+            placements={event.placements}
+            fieldTeams={event.eventTeams.map((et) => et.team)}
+          />
+        </CardContent>
+      </Card>
+
       {event.type === "PLACEMENT" && (
         <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div>
               <CardTitle className="text-base">Public Schedule</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                Announce when this placement event happens. Sessions appear on the public schedule — not on the
+                Announce when this solo event happens. Sessions appear on the public schedule — not on the
                 Scoreboard. Enter results below with Finalize Results.
               </p>
             </div>
@@ -520,7 +564,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                   {event.matches.map((m) => (
                     <TableRow key={m.id}>
                       <TableCell className="font-medium">
-                        {m.homeTeam.name} vs {m.awayTeam.name}
+                        <p>
+                          {m.homeTeam.name} vs {m.awayTeam.name}
+                        </p>
+                        {m.status === "POSTPONED" && m.postponeReason && (
+                          <p className="mt-1 text-xs font-normal text-amber-700 dark:text-amber-400">
+                            Reason: {m.postponeReason}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="tabular-nums">
                         {m.homeScore} – {m.awayScore}

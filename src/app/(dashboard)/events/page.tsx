@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
-import { eventCategoryLabel } from "@/lib/format";
+import { eventCategoryLabel, eventTypeLabel } from "@/lib/format";
 import type { Sport, SportEvent, SportEventCategory, SportEventStatus } from "@/lib/types";
 
 const schema = z.object({
@@ -42,8 +42,8 @@ type FormValues = z.infer<typeof schema>;
 const DEFAULT_VALUES: FormValues = { name: "", type: "TEAM_VS_TEAM", category: "UNSPECIFIED", description: "" };
 
 const EVENT_TYPE_ITEMS = {
-  TEAM_VS_TEAM: "Team vs. Team (e.g. basketball, volleyball)",
-  PLACEMENT: "Placement (e.g. dance, track and field)",
+  TEAM_VS_TEAM: "Group (e.g. basketball, volleyball)",
+  PLACEMENT: "Solo (e.g. chess, dancesport)",
 };
 
 const CATEGORY_ITEMS = {
@@ -227,10 +227,13 @@ export default function EventsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="TEAM_VS_TEAM">Team vs. Team (e.g. basketball, volleyball)</SelectItem>
-                        <SelectItem value="PLACEMENT">Placement (e.g. dance, track and field)</SelectItem>
+                        <SelectItem value="TEAM_VS_TEAM">Group (e.g. basketball, volleyball)</SelectItem>
+                        <SelectItem value="PLACEMENT">Solo (e.g. chess, dancesport)</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Group events use the group points table. Solo events use the solo table.
+                    </p>
                     {editingEvent && (
                       <p className="text-xs text-muted-foreground">Type can&apos;t be changed after an event is created.</p>
                     )}
@@ -315,7 +318,7 @@ export default function EventsPage() {
                             <div className="flex items-center gap-2 text-muted-foreground">
                               {event.type === "TEAM_VS_TEAM" ? <Swords className="size-4" /> : <ListOrdered className="size-4" />}
                               <span className="text-xs font-medium uppercase tracking-wider">
-                                {event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}
+                                {eventTypeLabel(event.type)}
                               </span>
                             </div>
                             <div className="flex items-center gap-1.5">

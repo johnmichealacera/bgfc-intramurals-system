@@ -3,11 +3,12 @@
 import { use } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Trophy, BookOpen, CalendarDays, Lock } from "lucide-react";
+import { Trophy, BookOpen, CalendarDays, Lock, GitBranch } from "lucide-react";
+import { EventBracket } from "@/components/event-bracket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
-import { format, eventCategoryLabel } from "@/lib/format";
+import { format, eventCategoryLabel, eventTypeLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import type { SportEventDetail } from "@/lib/types";
 
@@ -39,7 +40,7 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}
+          {eventTypeLabel(event.type)}
           {event.category && ` · ${eventCategoryLabel(event.category)}`}
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">{event.name}</h1>
@@ -52,6 +53,20 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
             View official {guideline.name} guidelines
           </Link>
         )}
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
+        <div className="mb-4 flex items-center gap-2">
+          <GitBranch className="size-4 text-primary" />
+          <p className="text-sm font-semibold">
+            {event.type === "TEAM_VS_TEAM" ? "Elimination Bracket" : "Finals Field"}
+          </p>
+        </div>
+        <EventBracket
+          games={event.bracketGames ?? []}
+          placements={event.placements}
+          fieldTeams={(event.eventTeams ?? []).map((entry) => entry.team)}
+        />
       </div>
 
       {event.type === "TEAM_VS_TEAM" && (
@@ -77,6 +92,9 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
                         {format.dateTime(m.scheduledAt)}
                         {m.venue ? ` · ${m.venue}` : ""}
                       </p>
+                      {m.status === "POSTPONED" && m.postponeReason && (
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Reason: {m.postponeReason}</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       {m.status !== "POSTPONED" && (

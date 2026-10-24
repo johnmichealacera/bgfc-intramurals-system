@@ -54,7 +54,7 @@ export default function MatchesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Matches"
-        description="All scheduled matches across team-vs-team events for the selected season."
+        description="All scheduled matches across group events for the selected season."
         actions={
           <div className="flex items-center gap-2">
             <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
@@ -81,7 +81,7 @@ export default function MatchesPage() {
           <Swords className="mb-3 size-8 text-muted-foreground" />
           <p className="text-sm font-medium">No matches scheduled</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {teamEvents.length ? "Schedule a match to get started." : "Create a team-vs-team event first."}
+            {teamEvents.length ? "Schedule a match to get started." : "Create a group event first."}
           </p>
         </div>
       ) : (
@@ -114,6 +114,9 @@ export default function MatchesPage() {
                         {(m.status === "FINISHED" || m.status === "POSTPONED") && <Lock className="mr-1 size-3" />}
                         {m.status}
                       </Badge>
+                      {m.status === "POSTPONED" && m.postponeReason && (
+                        <p className="mt-1 max-w-48 text-xs text-amber-700 dark:text-amber-400">{m.postponeReason}</p>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button

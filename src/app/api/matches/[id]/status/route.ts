@@ -4,9 +4,11 @@ import { z } from "zod";
 import { authOptions, assertEventAccess, assertRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
+import { advanceBracketWinner } from "@/lib/bracket";
 
 const actionSchema = z.object({
   action: z.enum(["START", "FINISH", "POSTPONE", "REQUEST_RESUME", "APPROVE_RESUME", "REJECT_RESUME"]),
+  reason: z.string().optional(),
 });
 
 const matchInclude = {
@@ -23,13 +25,14 @@ const clearResume = {
   resumeApprovedAt: null,
   resumeRequestedByUserId: null,
   resumeApprovedByUserId: null,
+  resumeRequestReason: null,
 };
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     const { id } = await params;
-    const { action } = actionSchema.parse(await req.json());
+    const { action, reason = "" } = actionSchema.parse(await req.json());
 
     const match = await db.match.findUniqueOrThrow({ where: { id } });
     await assertEventAccess(session, match.sportEventId);
@@ -56,9 +59,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     if (action === "POSTPONE") {
+      const postponeReason = reason.trim();
+      if (postponeReason.length < 8) {
+        return NextResponse.json({ error: "Write a reason for postponing this game (at least 8 characters)." }, { status: 400 });
+      }
       const result = await db.match.updateMany({
         where: { id, status: { in: ["SCHEDULED", "LIVE"] } },
-        data: { status: "POSTPONED", updatedByUserId: userId, ...clearResume },
+        data: { status: "POSTPONED", updatedByUserId: userId, postponeReason, ...clearResume },
       });
       if (result.count === 0) {
         return NextResponse.json({ error: "Only scheduled or live matches can be postponed." }, { status: 409 });
@@ -69,6 +76,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     if (action === "REQUEST_RESUME") {
       assertRole(session, ["TABULATOR"]);
+      const letter = reason.trim();
+      if (letter.length < 15) {
+        return NextResponse.json({ error: "Write a resume letter (at least 15 characters) before sending the request." }, { status: 400 });
+      }
       if (match.status !== "POSTPONED") {
         return NextResponse.json({ error: "Only postponed matches can request a resume." }, { status: 409 });
       }
@@ -83,6 +94,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           resumeRequestedByUserId: userId,
           resumeApprovedAt: null,
           resumeApprovedByUserId: null,
+          resumeRequestReason: letter,
         },
         include: matchInclude,
       });
@@ -131,11 +143,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             ? current.homeTeamId
             : current.awayTeamId;
 
-      return tx.match.update({
+      const updated = await tx.match.update({
         where: { id },
         data: { status: "FINISHED", winnerTeamId, updatedByUserId: userId, ...clearResume },
         include: matchInclude,
       });
+      await advanceBracketWinner(tx, id, winnerTeamId);
+      return updated;
     });
 
     return NextResponse.json(finished);

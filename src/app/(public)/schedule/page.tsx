@@ -6,7 +6,7 @@ import { CalendarDays, Swords, ListOrdered, Lock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
-import { eventCategoryLabel, format } from "@/lib/format";
+import { eventCategoryLabel, eventTypeLabel, format } from "@/lib/format";
 import type { Match, SportEvent, SportEventCategory, SportEventStatus } from "@/lib/types";
 
 const statusStyles: Record<SportEventStatus, string> = {
@@ -105,6 +105,9 @@ function PostponedRow({ event, match }: { event: SportEvent; match: Match }) {
           {format.dateTime(match.scheduledAt)}
           {match.venue ? ` · ${match.venue}` : ""}
         </p>
+        {match.postponeReason && (
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Reason: {match.postponeReason}</p>
+        )}
       </div>
       <Badge className="shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-400">
         <Lock className="mr-1 size-3" />
@@ -124,7 +127,7 @@ function EventCard({ event }: { event: SportEvent }) {
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {event.type === "TEAM_VS_TEAM" ? <Swords className="size-3.5" /> : <ListOrdered className="size-3.5" />}
-          {event.type === "TEAM_VS_TEAM" ? "Team vs. Team" : "Placement"}
+          {eventTypeLabel(event.type)}
         </span>
         <Badge className={statusStyles[event.status]}>{event.status}</Badge>
       </div>

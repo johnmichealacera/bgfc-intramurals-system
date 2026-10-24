@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher, apiFetch, ApiError } from "@/lib/api-client";
 import { format } from "@/lib/format";
+import { MatchReasonDialog } from "@/components/dashboard/match-reason-dialog";
 import type { Match } from "@/lib/types";
 
 function TeamPanel({
@@ -89,9 +90,11 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
   });
 
   const statusMutation = useMutation({
-    mutationFn: (action: "START" | "FINISH" | "POSTPONE" | "REQUEST_RESUME" | "APPROVE_RESUME" | "REJECT_RESUME") =>
-      apiFetch<Match>(`/api/matches/${matchId}/status`, { method: "PATCH", body: JSON.stringify({ action }) }),
-    onSuccess: (updated, action) => {
+    mutationFn: (vars: {
+      action: "START" | "FINISH" | "POSTPONE" | "REQUEST_RESUME" | "APPROVE_RESUME" | "REJECT_RESUME";
+      reason?: string;
+    }) => apiFetch<Match>(`/api/matches/${matchId}/status`, { method: "PATCH", body: JSON.stringify(vars) }),
+    onSuccess: (updated, vars) => {
       mutate(updated, { revalidate: false });
       queryClient.invalidateQueries({ queryKey: ["matches"] });
       queryClient.invalidateQueries({ queryKey: ["event", updated.sportEventId] });
@@ -100,11 +103,11 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
         START: "Match started",
         FINISH: "Match finished and locked",
         POSTPONE: "Match postponed and locked",
-        REQUEST_RESUME: "Resume requested. Waiting for admin approval.",
+        REQUEST_RESUME: "Resume letter sent. Waiting for admin approval.",
         APPROVE_RESUME: "Resume approved. The tabulator can start the match.",
         REJECT_RESUME: "Resume request rejected.",
       };
-      toast.success(messages[action] ?? "Match updated");
+      toast.success(messages[vars.action] ?? "Match updated");
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update match status"),
   });
@@ -154,63 +157,77 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
           </Badge>
           {match.status === "SCHEDULED" && (
             <>
-              <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("START")}>
+              <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "START" })}>
                 <Play className="size-4" />
                 Start Match
               </Button>
-              <Button variant="outline" className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("POSTPONE")}>
-                <Pause className="size-4" />
-                Postpone
-              </Button>
+              <MatchReasonDialog
+                title="Postpone this match"
+                description="Write why this game needs to be postponed. The reason will appear on the public schedule."
+                placeholder="e.g. Heavy rain made the court unplayable..."
+                confirmLabel="Send postpone"
+                minLength={8}
+                pending={statusMutation.isPending}
+                trigger={<Button variant="outline" className="gap-2"><Pause className="size-4" />Postpone</Button>}
+                onSubmit={(reason) => statusMutation.mutate({ action: "POSTPONE", reason })}
+              />
             </>
           )}
           {isPostponed && role === "ADMIN" && (
             <>
               {match.resumeRequestedAt && !match.resumeApprovedAt && (
                 <>
-                  <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("APPROVE_RESUME")}>
+                  <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "APPROVE_RESUME" })}>
                     <Check className="size-4" />
                     Approve Resume
                   </Button>
-                  <Button variant="outline" className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("REJECT_RESUME")}>
+                  <Button variant="outline" className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "REJECT_RESUME" })}>
                     <X className="size-4" />
                     Reject
                   </Button>
                 </>
               )}
-              <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("START")}>
+              <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "START" })}>
                 <Play className="size-4" />
                 Resume Match
               </Button>
             </>
           )}
           {isPostponed && role === "TABULATOR" && !match.resumeApprovedAt && !match.resumeRequestedAt && (
-            <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("REQUEST_RESUME")}>
-              Request Resume
-            </Button>
+            <MatchReasonDialog
+              title="Request resume"
+              description="Write a letter explaining why this postponed game should resume. An admin must approve it first."
+              placeholder="e.g. The court is dry and both teams are ready to continue..."
+              confirmLabel="Send request"
+              minLength={15}
+              pending={statusMutation.isPending}
+              trigger={<Button className="gap-2">Request Resume</Button>}
+              onSubmit={(reason) => statusMutation.mutate({ action: "REQUEST_RESUME", reason })}
+            />
           )}
           {isPostponed && role === "TABULATOR" && match.resumeApprovedAt && (
-            <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("START")}>
+            <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "START" })}>
               <Play className="size-4" />
               Resume Match
             </Button>
           )}
           {isLive && (
             <>
+              <MatchReasonDialog
+                title="Postpone this match"
+                description="Write why this live game needs to stop. The reason will appear on the public schedule."
+                placeholder="e.g. Injury timeout extended; officials stopped play..."
+                confirmLabel="Send postpone"
+                minLength={8}
+                pending={statusMutation.isPending}
+                trigger={<Button variant="outline" className="gap-2"><Pause className="size-4" />Postpone</Button>}
+                onSubmit={(reason) => statusMutation.mutate({ action: "POSTPONE", reason })}
+              />
               <Button
                 variant="outline"
                 className="gap-2"
                 disabled={statusMutation.isPending}
-                onClick={() => statusMutation.mutate("POSTPONE")}
-              >
-                <Pause className="size-4" />
-                Postpone
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                disabled={statusMutation.isPending}
-                onClick={() => statusMutation.mutate("FINISH")}
+                onClick={() => statusMutation.mutate({ action: "FINISH" })}
               >
                 <Flag className="size-4" />
                 Finish Match
@@ -226,15 +243,29 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
         </p>
       )}
       {isPostponed && (
-        <p className="rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">
-          {match.resumeApprovedAt
-            ? `Admin approved the resume${match.resumeApprovedBy?.name ? ` (${match.resumeApprovedBy.name})` : ""}. The tabulator can start the match.`
-            : match.resumeRequestedAt
-              ? `Resume requested${match.resumeRequestedBy?.name ? ` by ${match.resumeRequestedBy.name}` : ""}. Waiting for admin approval.`
-              : role === "TABULATOR"
-                ? "This match is postponed and locked. Request admin approval before you can resume it."
-                : "This match is postponed and locked. An admin can resume it, or approve a tabulator request."}
-        </p>
+        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">
+          {match.postponeReason && (
+            <p>
+              <span className="font-medium text-foreground">Postpone reason: </span>
+              {match.postponeReason}
+            </p>
+          )}
+          {match.resumeRequestReason && (
+            <p>
+              <span className="font-medium text-foreground">Resume letter: </span>
+              {match.resumeRequestReason}
+            </p>
+          )}
+          <p>
+            {match.resumeApprovedAt
+              ? `Admin approved the resume${match.resumeApprovedBy?.name ? ` (${match.resumeApprovedBy.name})` : ""}. The tabulator can start the match.`
+              : match.resumeRequestedAt
+                ? `Resume requested${match.resumeRequestedBy?.name ? ` by ${match.resumeRequestedBy.name}` : ""}. Waiting for admin approval.`
+                : role === "TABULATOR"
+                  ? "This match is postponed and locked. Write a resume letter for admin approval."
+                  : "This match is postponed and locked. An admin can resume it, or approve a tabulator letter."}
+          </p>
+        </div>
       )}
 
       <div className="flex flex-col gap-4 sm:flex-row">

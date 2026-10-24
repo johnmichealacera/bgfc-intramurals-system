@@ -176,6 +176,12 @@ export default function DashboardPage() {
                       {m.sportEvent?.name}
                       {m.resumeRequestedBy?.name ? ` · requested by ${m.resumeRequestedBy.name}` : ""}
                     </p>
+                    {m.resumeRequestReason && (
+                      <p className="mt-1 text-xs text-foreground/80">“{m.resumeRequestReason}”</p>
+                    )}
+                    {m.postponeReason && (
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Postponed: {m.postponeReason}</p>
+                    )}
                   </div>
                   <Button size="sm" className="shrink-0 gap-1.5" render={<Link href={`/scoreboard/${m.id}`} />} nativeButton={false}>
                     <Check className="size-3.5" />
@@ -271,8 +277,8 @@ export default function DashboardPage() {
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {isPlacement
                               ? sessionCount === 0
-                                ? "Placement event — results are entered on the event page (not Scoreboard)"
-                                : `Placement · ${sessionCount} public session${sessionCount === 1 ? "" : "s"}${
+                                ? "Solo event — results are entered on the event page (not Scoreboard)"
+                                : `Solo · ${sessionCount} public session${sessionCount === 1 ? "" : "s"}${
                                     nextSession ? ` · next ${format.dateTime(nextSession.scheduledAt)}` : ""
                                   }`
                               : !hasMatches

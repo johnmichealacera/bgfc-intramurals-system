@@ -25,6 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { eventTypeLabel } from "@/lib/format";
 import type { Sport } from "@/lib/types";
 
 const schema = z.object({
@@ -36,8 +37,8 @@ type FormValues = z.infer<typeof schema>;
 const DEFAULT_VALUES: FormValues = { name: "", type: "TEAM_VS_TEAM" };
 
 const TYPE_ITEMS = {
-  TEAM_VS_TEAM: "Team vs. Team (e.g. basketball, volleyball)",
-  PLACEMENT: "Placement (e.g. dance, track and field)",
+  TEAM_VS_TEAM: "Group (e.g. basketball, volleyball)",
+  PLACEMENT: "Solo (e.g. chess, dancesport)",
 };
 
 export default function SportsPage() {
@@ -146,8 +147,8 @@ export default function SportsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="TEAM_VS_TEAM">Team vs. Team (e.g. basketball, volleyball)</SelectItem>
-                      <SelectItem value="PLACEMENT">Placement (e.g. dance, track and field)</SelectItem>
+                      <SelectItem value="TEAM_VS_TEAM">Group (e.g. basketball, volleyball)</SelectItem>
+                      <SelectItem value="PLACEMENT">Solo (e.g. chess, dancesport)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -189,6 +190,7 @@ export default function SportsPage() {
                   )}
                   <div>
                     <p className="font-medium">{sport.name}</p>
+                    <p className="text-xs text-muted-foreground">{eventTypeLabel(sport.type)}</p>
                     {sport.isDefault && (
                       <Badge variant="outline" className="mt-1 gap-1 text-[10px]">
                         <Lock className="size-2.5" />

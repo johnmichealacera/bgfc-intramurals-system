@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 
 const bulkUpsertSchema = z.object({
   seasonId: z.string().min(1),
+  eventType: z.enum(["TEAM_VS_TEAM", "PLACEMENT"]),
   rules: z
     .array(
       z.object({
@@ -40,7 +41,7 @@ export async function PUT(req: Request) {
     const session = await getServerSession(authOptions);
     assertRole(session, ["ADMIN"]);
 
-    const { seasonId, rules } = bulkUpsertSchema.parse(await req.json());
+    const { seasonId, eventType, rules } = bulkUpsertSchema.parse(await req.json());
 
     const placementNumbers = rules.map((r) => r.placement);
     if (new Set(placementNumbers).size !== placementNumbers.length) {
@@ -48,13 +49,16 @@ export async function PUT(req: Request) {
     }
 
     await db.$transaction([
-      db.placementPointsRule.deleteMany({ where: { seasonId } }),
+      db.placementPointsRule.deleteMany({ where: { seasonId, eventType } }),
       db.placementPointsRule.createMany({
-        data: rules.map((r) => ({ seasonId, placement: r.placement, points: r.points })),
+        data: rules.map((r) => ({ seasonId, eventType, placement: r.placement, points: r.points })),
       }),
     ]);
 
-    const updated = await db.placementPointsRule.findMany({ where: { seasonId }, orderBy: { placement: "asc" } });
+    const updated = await db.placementPointsRule.findMany({
+      where: { seasonId, eventType },
+      orderBy: { placement: "asc" },
+    });
     return NextResponse.json(updated);
   } catch (error) {
     return apiError(error);

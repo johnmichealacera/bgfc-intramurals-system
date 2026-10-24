@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const event = await db.sportEvent.findUniqueOrThrow({ where: { id } });
     if (event.type !== "PLACEMENT") {
       return NextResponse.json(
-        { error: "Schedules are only for placement events. Use matches for team-vs-team events." },
+        { error: "Schedules are only for solo events. Use matches for group events." },
         { status: 400 },
       );
     }

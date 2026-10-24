@@ -33,13 +33,6 @@ export default function PublicHomePage() {
             <Radio className="size-4" />
             Watch Live
           </Link>
-          <Link
-            href="/standings"
-            className="inline-flex h-11 items-center gap-2 rounded-lg border border-primary/25 bg-background/80 px-5 text-sm font-medium shadow-sm transition-all hover:bg-primary/5"
-          >
-            <ListOrdered className="size-4" />
-            View Standings
-          </Link>
         </div>
       </section>
 

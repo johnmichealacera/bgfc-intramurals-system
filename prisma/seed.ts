@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
 import { SPORTS_GUIDELINES } from "../src/lib/sports-guidelines";
 import { getEnrollmentBlockReason } from "../src/lib/enrollment-rules";
+import { generateEventBracket } from "../src/lib/bracket";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
@@ -32,6 +33,7 @@ function daysFrom(base: Date, offsetDays: number, hours = 9, minutes = 0) {
 }
 
 async function clearSeasonData(seasonId: string) {
+  await db.eventBracketGame.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.eventPlacement.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.match.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.eventTabulator.deleteMany({ where: { sportEvent: { seasonId } } });
@@ -144,20 +146,27 @@ async function main() {
     },
   });
 
-  const defaultPoints = [
+  const groupPoints = [
     { placement: 1, points: 10 },
     { placement: 2, points: 7 },
     { placement: 3, points: 5 },
     { placement: 4, points: 3 },
     { placement: 5, points: 1 },
   ];
-  for (const rule of defaultPoints) {
-    await db.placementPointsRule.upsert({
-      where: { seasonId_placement: { seasonId: season.id, placement: rule.placement } },
-      update: { points: rule.points },
-      create: { seasonId: season.id, placement: rule.placement, points: rule.points },
-    });
-  }
+  const soloPoints = [
+    { placement: 1, points: 15 },
+    { placement: 2, points: 10 },
+    { placement: 3, points: 7 },
+    { placement: 4, points: 4 },
+    { placement: 5, points: 2 },
+  ];
+  await db.placementPointsRule.deleteMany({ where: { seasonId: season.id } });
+  await db.placementPointsRule.createMany({
+    data: [
+      ...groupPoints.map((rule) => ({ seasonId: season.id, eventType: "TEAM_VS_TEAM" as const, ...rule })),
+      ...soloPoints.map((rule) => ({ seasonId: season.id, eventType: "PLACEMENT" as const, ...rule })),
+    ],
+  });
 
   for (const sport of SPORTS_GUIDELINES) {
     await db.sport.upsert({
@@ -466,29 +475,55 @@ async function main() {
         status: "POSTPONED",
         scheduledAt: daysFrom(baseDay, 1, 14, 0),
         venue: "Multi-Purpose Hall",
+        postponeReason: "Rain flooded the multi-purpose hall floor, so officials stopped play.",
+        resumeRequestedAt: daysFrom(baseDay, 1, 16, 0),
+        resumeRequestedByUserId: tabulator.id,
+        resumeRequestReason:
+          "The hall is now dry, tables are reset, and both teams are ready to resume this afternoon.",
       },
     ],
   });
 
-  const pointsByPlace = Object.fromEntries(defaultPoints.map((r) => [r.placement, r.points]));
+  const groupByPlace = Object.fromEntries(groupPoints.map((r) => [r.placement, r.points]));
+  const soloByPlace = Object.fromEntries(soloPoints.map((r) => [r.placement, r.points]));
 
   await db.eventPlacement.createMany({
     data: [
-      { id: "seed-place-vb-1", sportEventId: volleyball.id, teamId: falcons.id, placement: 1, points: pointsByPlace[1] },
-      { id: "seed-place-vb-2", sportEventId: volleyball.id, teamId: dragons.id, placement: 2, points: pointsByPlace[2] },
-      { id: "seed-place-vb-3", sportEventId: volleyball.id, teamId: warriors.id, placement: 3, points: pointsByPlace[3] },
-      { id: "seed-place-vb-4", sportEventId: volleyball.id, teamId: phoenix.id, placement: 4, points: pointsByPlace[4] },
-      { id: "seed-place-vb-5", sportEventId: volleyball.id, teamId: titans.id, placement: 5, points: pointsByPlace[5] },
+      { id: "seed-place-vb-1", sportEventId: volleyball.id, teamId: falcons.id, placement: 1, points: groupByPlace[1] },
+      { id: "seed-place-vb-2", sportEventId: volleyball.id, teamId: dragons.id, placement: 2, points: groupByPlace[2] },
+      { id: "seed-place-vb-3", sportEventId: volleyball.id, teamId: warriors.id, placement: 3, points: groupByPlace[3] },
+      { id: "seed-place-vb-4", sportEventId: volleyball.id, teamId: phoenix.id, placement: 4, points: groupByPlace[4] },
+      { id: "seed-place-vb-5", sportEventId: volleyball.id, teamId: titans.id, placement: 5, points: groupByPlace[5] },
 
-      { id: "seed-place-dance-1", sportEventId: dancesport.id, teamId: phoenix.id, placement: 1, points: pointsByPlace[1] },
-      { id: "seed-place-dance-2", sportEventId: dancesport.id, teamId: knights.id, placement: 2, points: pointsByPlace[2] },
-      { id: "seed-place-dance-3", sportEventId: dancesport.id, teamId: falcons.id, placement: 3, points: pointsByPlace[3] },
-      { id: "seed-place-dance-4", sportEventId: dancesport.id, teamId: titans.id, placement: 4, points: pointsByPlace[4] },
-      { id: "seed-place-dance-5", sportEventId: dancesport.id, teamId: dragons.id, placement: 5, points: pointsByPlace[5] },
+      { id: "seed-place-dance-1", sportEventId: dancesport.id, teamId: phoenix.id, placement: 1, points: soloByPlace[1] },
+      { id: "seed-place-dance-2", sportEventId: dancesport.id, teamId: knights.id, placement: 2, points: soloByPlace[2] },
+      { id: "seed-place-dance-3", sportEventId: dancesport.id, teamId: falcons.id, placement: 3, points: soloByPlace[3] },
+      { id: "seed-place-dance-4", sportEventId: dancesport.id, teamId: titans.id, placement: 4, points: soloByPlace[4] },
+      { id: "seed-place-dance-5", sportEventId: dancesport.id, teamId: dragons.id, placement: 5, points: soloByPlace[5] },
     ],
   });
 
-  const [teamCount, matchCount, liveCount, placementCount, eventCount, eventTeamCount, eventRosterCount, scheduleCount] =
+  async function seedBracket(sportEventId: string, dropExtraScheduled = false) {
+    const keepIds = dropExtraScheduled
+      ? (await db.match.findMany({ where: { sportEventId }, select: { id: true } })).map((m) => m.id)
+      : [];
+    const enrolled = await db.eventTeam.findMany({
+      where: { sportEventId },
+      orderBy: { team: { name: "asc" } },
+    });
+    await db.$transaction((tx) => generateEventBracket(tx, sportEventId, enrolled.map((entry) => entry.teamId)));
+    if (dropExtraScheduled) {
+      await db.match.deleteMany({
+        where: { sportEventId, status: "SCHEDULED", id: { notIn: keepIds } },
+      });
+    }
+  }
+
+  await seedBracket(basketball.id);
+  await seedBracket(volleyball.id, true);
+  await seedBracket(tableTennis.id);
+
+  const [teamCount, matchCount, liveCount, placementCount, eventCount, eventTeamCount, eventRosterCount, scheduleCount, bracketCount] =
     await Promise.all([
       db.team.count({ where: { seasonId: season.id } }),
       db.match.count({ where: { sportEvent: { seasonId: season.id } } }),
@@ -498,6 +533,7 @@ async function main() {
       db.eventTeam.count({ where: { sportEvent: { seasonId: season.id } } }),
       db.eventParticipant.count({ where: { eventTeam: { sportEvent: { seasonId: season.id } } } }),
       db.eventSchedule.count({ where: { sportEvent: { seasonId: season.id } } }),
+      db.eventBracketGame.count({ where: { sportEvent: { seasonId: season.id } } }),
     ]);
 
   console.log("Seed complete — demo data ready for presentation");
@@ -509,6 +545,7 @@ async function main() {
   console.log(`  Event teams:   ${eventTeamCount} enrollments / ${eventRosterCount} roster spots`);
   console.log(`  Schedules:     ${scheduleCount} placement sessions (public hype)`);
   console.log(`  Matches:       ${matchCount} (${liveCount} LIVE)`);
+  console.log(`  Brackets:      ${bracketCount} elimination games`);
   console.log(`  Placements:    ${placementCount} (feeds overall standings)`);
 }
 

@@ -1,4 +1,4 @@
-import type { SportEventCategory } from "@/lib/types";
+import type { SportEventCategory, SportEventType } from "@/lib/types";
 
 const EVENT_CATEGORY_LABELS: Record<SportEventCategory, string> = {
   MEN: "Men's",
@@ -8,6 +8,10 @@ const EVENT_CATEGORY_LABELS: Record<SportEventCategory, string> = {
 
 export function eventCategoryLabel(category: SportEventCategory | null | undefined) {
   return category ? EVENT_CATEGORY_LABELS[category] : null;
+}
+
+export function eventTypeLabel(type: SportEventType) {
+  return type === "TEAM_VS_TEAM" ? "Group" : "Solo";
 }
 
 export const format = {

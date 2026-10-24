@@ -11,6 +11,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         matches: { include: { homeTeam: true, awayTeam: true, winnerTeam: true }, orderBy: { scheduledAt: "asc" } },
         schedules: { orderBy: { scheduledAt: "asc" } },
         placements: { include: { team: true }, orderBy: { placement: "asc" } },
+        eventTeams: { include: { team: true }, orderBy: { team: { name: "asc" } } },
+        bracketGames: {
+          include: {
+            homeTeam: true,
+            awayTeam: true,
+            winnerTeam: true,
+            match: { include: { homeTeam: true, awayTeam: true, winnerTeam: true } },
+          },
+          orderBy: [{ round: "asc" }, { position: "asc" }],
+        },
       },
     });
     return NextResponse.json(event);

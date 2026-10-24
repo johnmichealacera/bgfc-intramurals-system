@@ -96,13 +96,31 @@ export type SportEvent = {
   _count?: { matches: number; placements: number; tabulators: number };
 };
 
+export type EventBracketGame = {
+  id: string;
+  sportEventId: string;
+  round: number;
+  position: number;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  winnerTeamId: string | null;
+  matchId: string | null;
+  nextGameId: string | null;
+  nextSlot: "HOME" | "AWAY" | null;
+  homeTeam: Team | null;
+  awayTeam: Team | null;
+  winnerTeam: Team | null;
+  match: Match | null;
+};
+
 export type SportEventDetail = SportEvent & {
-  season: Season;
+  season?: Season;
   matches: Match[];
   schedules: EventSchedule[];
   placements: EventPlacement[];
   eventTeams: EventTeamEntry[];
-  tabulators: { id: string; userId: string; user: { id: string; name: string; email: string } }[];
+  bracketGames?: EventBracketGame[];
+  tabulators?: { id: string; userId: string; user: { id: string; name: string; email: string } }[];
 };
 
 export type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED";
@@ -118,8 +136,10 @@ export type Match = {
   winnerTeamId: string | null;
   scheduledAt: string;
   venue: string | null;
+  postponeReason: string | null;
   resumeRequestedAt: string | null;
   resumeApprovedAt: string | null;
+  resumeRequestReason: string | null;
   resumeRequestedBy?: { id: string; name: string } | null;
   resumeApprovedBy?: { id: string; name: string } | null;
   homeTeam: Team;
@@ -140,6 +160,7 @@ export type EventPlacement = {
 export type PlacementPointsRule = {
   id: string;
   seasonId: string;
+  eventType: SportEventType;
   placement: number;
   points: number;
 };
