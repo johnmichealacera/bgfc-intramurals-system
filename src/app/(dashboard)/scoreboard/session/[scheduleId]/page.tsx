@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher, apiFetch, ApiError } from "@/lib/api-client";
-import { format, sessionSides, sessionVsLabel } from "@/lib/format";
+import { format, sessionVsLabel } from "@/lib/format";
 import { MatchReasonDialog } from "@/components/dashboard/match-reason-dialog";
 import { CorrectScoreDialog } from "@/components/dashboard/correct-score-dialog";
 import type { EventSchedule } from "@/lib/types";
@@ -133,7 +133,6 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
   const isPostponed = game.status === "POSTPONED";
   const isLocked = isFinished || isPostponed;
   const scores = game.scores ?? [];
-  const { home, away } = sessionSides(scores);
 
   return (
     <div className="space-y-6">
@@ -288,12 +287,9 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
               </Button>
             </>
           )}
-          {isFinished && role === "ADMIN" && home && away && (
+          {isFinished && role === "ADMIN" && scores.length > 0 && (
             <CorrectScoreDialog
-              teams={[
-                { id: home.teamId, name: home.team.name, score: home.score },
-                { id: away.teamId, name: away.team.name, score: away.score },
-              ]}
+              teams={scores.map((row) => ({ id: row.teamId, name: row.team.name, score: row.score }))}
               pending={correctMutation.isPending}
               trigger={
                 <Button variant="outline" className="gap-2">
@@ -380,25 +376,17 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
             : "Enrolled team scores appear here after the session goes live."}
         </div>
       ) : (
-        <div className="flex flex-col gap-4 sm:flex-row">
-          {home && (
+        <div className={scores.length > 2 ? "grid gap-4 sm:grid-cols-2" : "flex flex-col gap-4 sm:flex-row"}>
+          {scores.map((row) => (
             <TeamPanel
-              label={home.team.name}
-              score={home.score}
-              colorHex={home.team.colorHex}
+              key={row.teamId}
+              label={row.team.name}
+              score={row.score}
+              colorHex={row.team.colorHex}
               disabled={!isLive || scoreMutation.isPending}
-              onDelta={(delta) => scoreMutation.mutate({ teamId: home.teamId, delta })}
+              onDelta={(delta) => scoreMutation.mutate({ teamId: row.teamId, delta })}
             />
-          )}
-          {away && (
-            <TeamPanel
-              label={away.team.name}
-              score={away.score}
-              colorHex={away.team.colorHex}
-              disabled={!isLive || scoreMutation.isPending}
-              onDelta={(delta) => scoreMutation.mutate({ teamId: away.teamId, delta })}
-            />
-          )}
+          ))}
         </div>
       )}
     </div>

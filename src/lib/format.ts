@@ -26,12 +26,15 @@ export function sessionVsLabel(scores: EventScheduleScore[] | undefined, fallbac
   return fallback;
 }
 
+const PH_DATE: Intl.DateTimeFormatOptions = { timeZone: "Asia/Manila" };
+
 export const format = {
   date(value: string | Date) {
-    return new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+    return new Date(value).toLocaleDateString("en-PH", { ...PH_DATE, year: "numeric", month: "short", day: "numeric" });
   },
   dateTime(value: string | Date) {
     return new Date(value).toLocaleString("en-PH", {
+      ...PH_DATE,
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -40,6 +43,6 @@ export const format = {
     });
   },
   time(value: string | Date) {
-    return new Date(value).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" });
+    return new Date(value).toLocaleTimeString("en-PH", { ...PH_DATE, hour: "numeric", minute: "2-digit" });
   },
 };

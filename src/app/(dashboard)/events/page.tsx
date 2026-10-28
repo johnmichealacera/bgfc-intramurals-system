@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -61,7 +60,6 @@ const statusStyles: Record<SportEventStatus, string> = {
 };
 
 export default function EventsPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<SportEvent | null>(null);
@@ -302,16 +300,7 @@ export default function EventsPage() {
                 <h2 className="text-sm font-semibold tracking-tight">{heading[group]}</h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {grouped.map((event) => (
-                    <div
-                      key={event.id}
-                      role="link"
-                      tabIndex={0}
-                      onClick={() => router.push(`/events/${event.id}`)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") router.push(`/events/${event.id}`);
-                      }}
-                      className="cursor-pointer"
-                    >
+                    <Link key={event.id} href={`/events/${event.id}`} className="block">
                       <Card className="h-full border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
                         <CardContent className="flex h-full flex-col gap-3 p-5">
                           <div className="flex items-start justify-between gap-2">
@@ -328,6 +317,7 @@ export default function EventsPage() {
                                 size="icon"
                                 className="size-7 text-muted-foreground hover:text-foreground"
                                 onClick={(e) => {
+                                  e.preventDefault();
                                   e.stopPropagation();
                                   openEditDialog(event);
                                 }}
@@ -355,7 +345,7 @@ export default function EventsPage() {
                           )}
                         </CardContent>
                       </Card>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </section>

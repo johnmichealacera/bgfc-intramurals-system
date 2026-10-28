@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,7 +39,6 @@ type FormValues = z.infer<typeof schema>;
 const DEFAULT_VALUES: FormValues = { name: "", colorHex: "#0f766e" };
 
 export default function TeamsPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
@@ -200,16 +199,7 @@ export default function TeamsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {teams.map((team) => (
-            <div
-              key={team.id}
-              role="link"
-              tabIndex={0}
-              onClick={() => router.push(`/teams/${team.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") router.push(`/teams/${team.id}`);
-              }}
-              className="cursor-pointer"
-            >
+            <Link key={team.id} href={`/teams/${team.id}`} className="block">
               <Card className="h-full border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
                 <CardContent className="flex items-center justify-between gap-3 p-4">
                   <div className="flex items-center gap-3">
@@ -224,7 +214,13 @@ export default function TeamsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
                     <Button
                       variant="ghost"
                       size="icon"
@@ -242,7 +238,7 @@ export default function TeamsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </Link>
           ))}
         </div>
       )}
