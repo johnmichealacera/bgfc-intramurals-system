@@ -10,9 +10,47 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher, apiFetch, ApiError } from "@/lib/api-client";
-import { format } from "@/lib/format";
+import { format, sessionSides, sessionVsLabel } from "@/lib/format";
 import { MatchReasonDialog } from "@/components/dashboard/match-reason-dialog";
 import type { EventSchedule } from "@/lib/types";
+
+function TeamPanel({
+  label,
+  score,
+  colorHex,
+  disabled,
+  onDelta,
+}: {
+  label: string;
+  score: number;
+  colorHex: string;
+  disabled: boolean;
+  onDelta: (delta: number) => void;
+}) {
+  return (
+    <div
+      className="flex flex-1 flex-col items-center gap-6 rounded-2xl border border-border/70 bg-card/85 p-6 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10 sm:p-8"
+      style={{ borderTopWidth: 4, borderTopColor: colorHex }}
+    >
+      <p className="text-center text-lg font-semibold tracking-tight sm:text-xl">{label}</p>
+      <p className="text-7xl font-bold tabular-nums tracking-tight sm:text-8xl">{score}</p>
+      <div className="flex items-center gap-3">
+        <Button
+          size="icon"
+          variant="outline"
+          className="size-14 rounded-full text-xl"
+          disabled={disabled}
+          onClick={() => onDelta(-1)}
+        >
+          <Minus className="size-6" />
+        </Button>
+        <Button size="icon" className="size-16 rounded-full text-2xl" disabled={disabled} onClick={() => onDelta(1)}>
+          <Plus className="size-7" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 type SessionAction =
   | "START"
@@ -82,13 +120,16 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
   const isPostponed = game.status === "POSTPONED";
   const isLocked = isFinished || isPostponed;
   const scores = game.scores ?? [];
+  const { home, away } = sessionSides(scores);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{game.sportEvent?.name}</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">{game.title || "Solo session"}</h1>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">
+            {sessionVsLabel(game.scores, game.title || "Solo session")}
+          </h1>
           <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <Clock className="size-3.5" />
@@ -294,35 +335,25 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
             : "Enrolled team scores appear here after the session goes live."}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
-          <ul className="divide-y divide-border/60">
-            {scores.map((row) => (
-              <li key={row.id} className="flex items-center gap-4 px-5 py-4">
-                <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: row.team.colorHex }} />
-                <p className="min-w-0 flex-1 font-semibold tracking-tight">{row.team.name}</p>
-                <p className="w-16 text-right text-3xl font-bold tabular-nums">{row.score}</p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-11 rounded-full"
-                    disabled={!isLive || scoreMutation.isPending}
-                    onClick={() => scoreMutation.mutate({ teamId: row.teamId, delta: -1 })}
-                  >
-                    <Minus className="size-5" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    className="size-11 rounded-full"
-                    disabled={!isLive || scoreMutation.isPending}
-                    onClick={() => scoreMutation.mutate({ teamId: row.teamId, delta: 1 })}
-                  >
-                    <Plus className="size-5" />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <div className="flex flex-col gap-4 sm:flex-row">
+          {home && (
+            <TeamPanel
+              label={home.team.name}
+              score={home.score}
+              colorHex={home.team.colorHex}
+              disabled={!isLive || scoreMutation.isPending}
+              onDelta={(delta) => scoreMutation.mutate({ teamId: home.teamId, delta })}
+            />
+          )}
+          {away && (
+            <TeamPanel
+              label={away.team.name}
+              score={away.score}
+              colorHex={away.team.colorHex}
+              disabled={!isLive || scoreMutation.isPending}
+              onDelta={(delta) => scoreMutation.mutate({ teamId: away.teamId, delta })}
+            />
+          )}
         </div>
       )}
     </div>

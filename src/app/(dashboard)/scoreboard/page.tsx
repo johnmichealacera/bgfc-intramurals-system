@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api-client";
-import { format } from "@/lib/format";
+import { format, sessionSides, sessionVsLabel } from "@/lib/format";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
 import type { EventSchedule, Match, SportEvent } from "@/lib/types";
 
@@ -221,7 +221,7 @@ function MatchCard({ match: m }: { match: Match }) {
 
 function SessionCard({ session: s }: { session: EventSchedule }) {
   const locked = s.status === "FINISHED" || s.status === "POSTPONED";
-  const liveScores = (s.scores ?? []).slice(0, 3);
+  const { home, away } = sessionSides(s.scores);
   return (
     <Link href={`/scoreboard/session/${s.id}`}>
       <Card className="h-full border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
@@ -235,10 +235,10 @@ function SessionCard({ session: s }: { session: EventSchedule }) {
               {s.status}
             </Badge>
           </div>
-          <p className="font-semibold tracking-tight">{s.title || "Solo session"}</p>
-          {(s.status === "FINISHED" || s.status === "LIVE") && liveScores.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {liveScores.map((row) => `${row.team.name} ${row.score}`).join(" · ")}
+          <p className="font-semibold tracking-tight">{sessionVsLabel(s.scores, s.title || "Solo session")}</p>
+          {(s.status === "FINISHED" || s.status === "LIVE") && home && away ? (
+            <p className="text-sm tabular-nums text-muted-foreground">
+              {home.score} – {away.score}
             </p>
           ) : null}
           {s.status === "SCHEDULED" && s.controlApprovedAt ? (

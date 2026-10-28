@@ -4,7 +4,7 @@ import useSWR from "swr";
 import { Radio } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetcher } from "@/lib/api-client";
-import { format } from "@/lib/format";
+import { format, sessionSides } from "@/lib/format";
 import type { EventSchedule, Match } from "@/lib/types";
 
 export default function LivePage() {
@@ -73,39 +73,44 @@ export default function LivePage() {
               )}
             </div>
           ))}
-          {(sessions ?? []).map((s) => (
-            <div
-              key={s.id}
-              className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-6 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {s.sportEvent?.name} · Solo
-                </p>
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
-                  <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
-                  LIVE
-                </span>
+          {(sessions ?? []).map((s) => {
+            const { home, away } = sessionSides(s.scores);
+            return (
+              <div
+                key={s.id}
+                className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-6 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {s.sportEvent?.name} · Solo
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
+                    <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
+                    LIVE
+                  </span>
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="flex flex-1 items-center gap-2">
+                    {home && <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: home.team.colorHex }} />}
+                    <p className="truncate text-sm font-semibold">{home?.team.name ?? "TBD"}</p>
+                  </div>
+                  <p className="text-2xl font-bold tabular-nums">{home?.score ?? 0}</p>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <div className="flex flex-1 items-center gap-2">
+                    {away && <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: away.team.colorHex }} />}
+                    <p className="truncate text-sm font-semibold">{away?.team.name ?? "TBD"}</p>
+                  </div>
+                  <p className="text-2xl font-bold tabular-nums">{away?.score ?? 0}</p>
+                </div>
+                {s.venue && (
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    {s.venue} · {format.time(s.scheduledAt)}
+                  </p>
+                )}
               </div>
-              <p className="mt-3 text-sm font-semibold">{s.title || "Solo session"}</p>
-              <ul className="mt-3 space-y-2">
-                {(s.scores ?? []).map((row) => (
-                  <li key={row.id} className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: row.team.colorHex }} />
-                      <p className="truncate text-sm font-semibold">{row.team.name}</p>
-                    </div>
-                    <p className="text-2xl font-bold tabular-nums">{row.score}</p>
-                  </li>
-                ))}
-              </ul>
-              {s.venue && (
-                <p className="mt-4 text-xs text-muted-foreground">
-                  {s.venue} · {format.time(s.scheduledAt)}
-                </p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

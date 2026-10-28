@@ -1,4 +1,4 @@
-import type { SportEventCategory, SportEventType } from "@/lib/types";
+import type { EventScheduleScore, SportEventCategory, SportEventType } from "@/lib/types";
 
 const EVENT_CATEGORY_LABELS: Record<SportEventCategory, string> = {
   MEN: "Men's",
@@ -12,6 +12,18 @@ export function eventCategoryLabel(category: SportEventCategory | null | undefin
 
 export function eventTypeLabel(type: SportEventType) {
   return type === "TEAM_VS_TEAM" ? "Group" : "Solo";
+}
+
+export function sessionSides(scores: EventScheduleScore[] | undefined) {
+  const rows = scores ?? [];
+  return { home: rows[0], away: rows[1] };
+}
+
+export function sessionVsLabel(scores: EventScheduleScore[] | undefined, fallback = "Solo session") {
+  const { home, away } = sessionSides(scores);
+  if (home && away) return `${home.team.name} vs ${away.team.name}`;
+  if (home) return home.team.name;
+  return fallback;
 }
 
 export const format = {
