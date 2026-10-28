@@ -43,7 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         },
         schedules: {
           include: {
-            scores: { include: { team: true }, orderBy: { team: { name: "asc" } } },
+            scores: { include: { team: true }, orderBy: { createdAt: "asc" } },
             resumeRequestedBy: { select: { id: true, name: true } },
             resumeApprovedBy: { select: { id: true, name: true } },
             controlRequestedBy: { select: { id: true, name: true } },

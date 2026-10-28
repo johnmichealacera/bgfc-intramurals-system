@@ -8,7 +8,7 @@ import { EventBracket } from "@/components/event-bracket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
-import { format, eventCategoryLabel, eventTypeLabel } from "@/lib/format";
+import { format, eventCategoryLabel, eventTypeLabel, sessionSides, sessionVsLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import type { SportEventDetail } from "@/lib/types";
 
@@ -127,10 +127,11 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
             <ul className="divide-y divide-border/60">
               {event.schedules.map((s) => {
                 const locked = s.status === "POSTPONED" || s.status === "FINISHED";
+                const { home, away } = sessionSides(s.scores);
                 return (
                   <li key={s.id} className="flex items-start justify-between gap-4 px-5 py-4">
                     <div className="min-w-0">
-                      <p className="font-medium">{s.title || "Session"}</p>
+                      <p className="font-medium">{sessionVsLabel(s.scores, s.title || "Session")}</p>
                       <p className="text-xs text-muted-foreground">
                         {format.dateTime(s.scheduledAt)}
                         {s.venue ? ` · ${s.venue}` : ""}
@@ -138,16 +139,10 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
                       {s.status === "POSTPONED" && s.postponeReason && (
                         <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Reason: {s.postponeReason}</p>
                       )}
-                      {s.status === "LIVE" && (s.scores ?? []).length > 0 && (
-                        <ul className="mt-2 space-y-1">
-                          {s.scores?.map((row) => (
-                            <li key={row.id} className="flex items-center gap-2 text-xs">
-                              <span className="size-2.5 rounded-full" style={{ backgroundColor: row.team.colorHex }} />
-                              <span>{row.team.name}</span>
-                              <span className="tabular-nums font-semibold">{row.score}</span>
-                            </li>
-                          ))}
-                        </ul>
+                      {s.status === "LIVE" && home && away && (
+                        <p className="mt-2 text-xs tabular-nums font-semibold">
+                          {home.score} – {away.score}
+                        </p>
                       )}
                     </div>
                     <Badge className={matchStatusStyles[s.status] ?? matchStatusStyles.SCHEDULED}>

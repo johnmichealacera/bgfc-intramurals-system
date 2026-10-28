@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 
 export const scheduleInclude = {
   sportEvent: true,
-  scores: { include: { team: true }, orderBy: { team: { name: "asc" as const } } },
+  scores: { include: { team: true }, orderBy: { createdAt: "asc" as const } },
   resumeRequestedBy: { select: { id: true, name: true } },
   resumeApprovedBy: { select: { id: true, name: true } },
   controlRequestedBy: { select: { id: true, name: true } },
@@ -27,6 +27,8 @@ export const clearControl = {
 };
 
 export async function ensureScheduleScores(scheduleId: string, sportEventId: string) {
+  const existing = await db.eventScheduleScore.count({ where: { scheduleId } });
+  if (existing > 0) return;
   const teams = await db.eventTeam.findMany({
     where: { sportEventId },
     select: { teamId: true },

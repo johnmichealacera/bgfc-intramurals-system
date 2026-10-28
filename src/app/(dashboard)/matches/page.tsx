@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api-client";
-import { format } from "@/lib/format";
+import { format, sessionSides, sessionVsLabel } from "@/lib/format";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
 import type { EventSchedule, Match, SportEvent, Team } from "@/lib/types";
 
@@ -246,13 +246,13 @@ function MatchRow({ match: m }: { match: Match }) {
 
 function SessionRow({ session: s }: { session: EventSchedule }) {
   const locked = s.status === "FINISHED" || s.status === "POSTPONED";
-  const scores = s.scores ?? [];
+  const { home, away } = sessionSides(s.scores);
   return (
     <TableRow>
       <TableCell className="text-muted-foreground">{s.sportEvent?.name} · Solo</TableCell>
-      <TableCell className="font-medium">{s.title || "Solo session"}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        {scores.length ? scores.map((row) => `${row.team.name} ${row.score}`).join(" · ") : "—"}
+      <TableCell className="font-medium">{sessionVsLabel(s.scores, s.title || "Solo session")}</TableCell>
+      <TableCell className="tabular-nums">
+        {home && away ? `${home.score} – ${away.score}` : "—"}
       </TableCell>
       <TableCell className="text-muted-foreground">{format.dateTime(s.scheduledAt)}</TableCell>
       <TableCell>

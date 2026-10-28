@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { format, eventCategoryLabel, eventTypeLabel } from "@/lib/format";
+import { format, eventCategoryLabel, eventTypeLabel, sessionVsLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import { getEnrollmentBlockReason, MAX_EVENT_ENTRIES } from "@/lib/enrollment-rules";
 import { EventBracket } from "@/components/event-bracket";
@@ -502,13 +502,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div>
-              <CardTitle className="text-base">Public Schedule</CardTitle>
+              <CardTitle className="text-base">Solo Games</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                Announce when this solo event happens. Tabulators request admin approval before they can
-                control the session scoreboard. Finalize Results still awards placement points.
+                Schedule a versus game between two enrolled teams. Tabulators request admin approval before
+                they can control the scoreboard.
               </p>
             </div>
-            <ScheduleSessionDialog eventId={event.id} />
+            <ScheduleSessionDialog eventId={event.id} teams={enrolledTeams} />
           </CardHeader>
           <CardContent className="p-0">
             {(event.schedules ?? []).length === 0 ? (
@@ -517,7 +517,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Session</TableHead>
+                    <TableHead>Matchup</TableHead>
                     <TableHead>When</TableHead>
                     <TableHead>Venue</TableHead>
                     <TableHead>Status</TableHead>
@@ -530,7 +530,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       <TableCell className="font-medium">
                         <span className="inline-flex items-center gap-2">
                           <CalendarDays className="size-3.5 text-muted-foreground" />
-                          {s.title || "Session"}
+                          {sessionVsLabel(s.scores, s.title || "Session")}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{format.dateTime(s.scheduledAt)}</TableCell>
