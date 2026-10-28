@@ -11,15 +11,16 @@ export async function GET(req: Request) {
       seasonId = activeSeason.id;
     }
 
-    const teams = await db.team.findMany({ where: { seasonId } });
     const totals = await db.eventPlacement.groupBy({
       by: ["teamId"],
       where: { sportEvent: { seasonId } },
       _sum: { points: true },
     });
-    const pointsByTeam = new Map(totals.map((t) => [t.teamId, t._sum.points ?? 0]));
+    if (totals.length === 0) return NextResponse.json([]);
 
-    // Tie-break alphabetically so tied teams render deterministically instead of by incidental row order.
+    const pointsByTeam = new Map(totals.map((t) => [t.teamId, t._sum.points ?? 0]));
+    const teams = await db.team.findMany({ where: { id: { in: totals.map((t) => t.teamId) } } });
+
     const standings = teams
       .map((team) => ({ team, totalPoints: pointsByTeam.get(team.id) ?? 0 }))
       .sort((a, b) => b.totalPoints - a.totalPoints || a.team.name.localeCompare(b.team.name));

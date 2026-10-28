@@ -1,39 +1,70 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { ListOrdered } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { fetcher } from "@/lib/api-client";
-import type { StandingRow } from "@/lib/types";
+import type { Season, StandingRow } from "@/lib/types";
 
-// Standard competition ranking: teams tied on points share the same rank (1, 1, 3 — not 1, 2, 3).
 function computeRanks(standings: StandingRow[]): number[] {
-  return standings.map((row, idx) =>
-    idx === 0 || row.totalPoints !== standings[idx - 1].totalPoints ? idx + 1 : -1,
-  ).map((rank, idx, ranks) => (rank === -1 ? ranks[idx - 1] : rank));
+  const ranks: number[] = [];
+  for (let i = 0; i < standings.length; i++) {
+    ranks.push(i === 0 || standings[i].totalPoints !== standings[i - 1].totalPoints ? i + 1 : ranks[i - 1]);
+  }
+  return ranks;
 }
 
 export default function StandingsPage() {
-  const { data: standings, isLoading } = useSWR<StandingRow[]>("/api/public/standings", fetcher, {
-    refreshInterval: 15000,
-  });
+  const { data: seasons } = useSWR<Season[]>("/api/public/seasons", fetcher);
+  const activeSeasonId = seasons?.find((s) => s.isActive)?.id ?? seasons?.[0]?.id;
+  const [manualSeasonId, setManualSeasonId] = useState<string | undefined>();
+  const seasonId = manualSeasonId ?? activeSeasonId;
+  const seasonItems = Object.fromEntries((seasons ?? []).map((s) => [s.id, s.name]));
+
+  const { data: standings, isLoading } = useSWR<StandingRow[]>(
+    seasonId ? `/api/public/standings?seasonId=${seasonId}` : null,
+    fetcher,
+    { refreshInterval: 15000 },
+  );
   const ranks = standings ? computeRanks(standings) : [];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overall Standings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Total points earned across all finalized events this season.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Overall Standings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Total points from finalized events this season. Finish every game in an event, then use Finalize Results.
+          </p>
+        </div>
+        {seasons && seasons.length > 0 && (
+          <Select value={seasonId ?? ""} onValueChange={(value) => setManualSeasonId(value ?? undefined)} items={seasonItems}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Select season" />
+            </SelectTrigger>
+            <SelectContent>
+              {seasons.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      {isLoading ? (
+      {isLoading || !seasonId ? (
         <Skeleton className="h-96 rounded-2xl" />
       ) : !standings?.length ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-16 text-center">
           <ListOrdered className="mb-3 size-8 text-muted-foreground" />
           <p className="text-sm font-medium">No results yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Results will appear here once events are finalized.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Points show here after an event is finalized. Live match scores do not add to this table.
+          </p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
