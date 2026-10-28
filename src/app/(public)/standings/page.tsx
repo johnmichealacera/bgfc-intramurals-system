@@ -27,7 +27,7 @@ export default function StandingsPage() {
   const { data: standings, isLoading } = useSWR<StandingRow[]>(
     seasonId ? `/api/public/standings?seasonId=${seasonId}` : null,
     fetcher,
-    { refreshInterval: 15000 },
+    { refreshInterval: 5000 },
   );
   const ranks = standings ? computeRanks(standings) : [];
 
@@ -37,7 +37,7 @@ export default function StandingsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Overall Standings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Teams start at 0. Points update after an event is finalized.
+            Teams start at 0. A finished game gives 2 points to the winner (1 each if tied).
           </p>
         </div>
         {seasons && seasons.length > 0 && (
