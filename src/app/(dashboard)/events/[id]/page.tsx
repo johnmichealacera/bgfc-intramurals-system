@@ -493,8 +493,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             <div>
               <CardTitle className="text-base">Public Schedule</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                Announce when this solo event happens. Sessions appear on the public schedule — not on the
-                Scoreboard. Enter results below with Finalize Results.
+                Announce when this solo event happens. Tabulators request admin approval before they can
+                control the session scoreboard. Finalize Results still awards placement points.
               </p>
             </div>
             <ScheduleSessionDialog eventId={event.id} />
@@ -509,6 +509,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     <TableHead>Session</TableHead>
                     <TableHead>When</TableHead>
                     <TableHead>Venue</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -524,12 +525,33 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       <TableCell className="text-muted-foreground">{format.dateTime(s.scheduledAt)}</TableCell>
                       <TableCell className="text-muted-foreground">{s.venue || "—"}</TableCell>
                       <TableCell>
-                        <ConfirmDeleteDialog
-                          title="Remove this session?"
-                          description="It will no longer appear on the public schedule."
-                          pending={deleteScheduleMutation.isPending}
-                          onConfirm={() => deleteScheduleMutation.mutate(s.id)}
-                        />
+                        <Badge className={matchStatusStyles[s.status] ?? matchStatusStyles.SCHEDULED}>{s.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            render={<Link href={`/scoreboard/session/${s.id}`} />}
+                            nativeButton={false}
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                          >
+                            {s.status === "FINISHED" || s.status === "POSTPONED" ? (
+                              <Lock className="size-3.5" />
+                            ) : (
+                              <Radio className="size-3.5" />
+                            )}
+                            {s.status === "FINISHED" ? "View" : s.status === "POSTPONED" ? "Locked" : "Control"}
+                          </Button>
+                          {s.status === "SCHEDULED" && (
+                            <ConfirmDeleteDialog
+                              title="Remove this session?"
+                              description="It will no longer appear on the public schedule."
+                              pending={deleteScheduleMutation.isPending}
+                              onConfirm={() => deleteScheduleMutation.mutate(s.id)}
+                            />
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

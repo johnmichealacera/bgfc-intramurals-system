@@ -75,12 +75,36 @@ export type Sport = {
   isDefault: boolean;
 };
 
+export type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED";
+
+export type EventScheduleScore = {
+  id: string;
+  scheduleId: string;
+  teamId: string;
+  score: number;
+  team: Team;
+};
+
 export type EventSchedule = {
   id: string;
   sportEventId: string;
   title: string | null;
   scheduledAt: string;
   venue: string | null;
+  status: MatchStatus;
+  postponeReason: string | null;
+  resumeRequestedAt: string | null;
+  resumeApprovedAt: string | null;
+  resumeRequestReason: string | null;
+  controlRequestedAt: string | null;
+  controlApprovedAt: string | null;
+  controlRequestReason: string | null;
+  resumeRequestedBy?: { id: string; name: string } | null;
+  resumeApprovedBy?: { id: string; name: string } | null;
+  controlRequestedBy?: { id: string; name: string } | null;
+  controlApprovedBy?: { id: string; name: string } | null;
+  scores?: EventScheduleScore[];
+  sportEvent?: SportEvent;
 };
 
 export type SportEvent = {
@@ -123,8 +147,6 @@ export type SportEventDetail = SportEvent & {
   tabulators?: { id: string; userId: string; user: { id: string; name: string; email: string } }[];
 };
 
-export type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED";
-
 export type Match = {
   id: string;
   sportEventId: string;
@@ -142,6 +164,11 @@ export type Match = {
   resumeRequestReason: string | null;
   resumeRequestedBy?: { id: string; name: string } | null;
   resumeApprovedBy?: { id: string; name: string } | null;
+  controlRequestedAt: string | null;
+  controlApprovedAt: string | null;
+  controlRequestReason: string | null;
+  controlRequestedBy?: { id: string; name: string } | null;
+  controlApprovedBy?: { id: string; name: string } | null;
   homeTeam: Team;
   awayTeam: Team;
   winnerTeam: Team | null;

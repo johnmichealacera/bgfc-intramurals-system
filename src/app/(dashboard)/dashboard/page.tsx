@@ -70,6 +70,12 @@ export default function DashboardPage() {
     enabled: role === "ADMIN",
   });
 
+  const { data: liveSessions, isLoading: loadingLiveSessions } = useQuery({
+    queryKey: ["public", "live-sessions"],
+    queryFn: () => apiFetch<EventSchedule[]>("/api/public/live-sessions"),
+    enabled: role === "ADMIN",
+  });
+
   const { data: standings, isLoading: loadingStandings } = useQuery({
     queryKey: ["public", "standings"],
     queryFn: () => apiFetch<StandingRow[]>("/api/public/standings"),
@@ -79,6 +85,12 @@ export default function DashboardPage() {
   const { data: adminMatches } = useQuery({
     queryKey: ["matches", "all"],
     queryFn: () => apiFetch<Match[]>("/api/matches"),
+    enabled: role === "ADMIN",
+  });
+
+  const { data: adminSessions } = useQuery({
+    queryKey: ["schedules", "all"],
+    queryFn: () => apiFetch<EventSchedule[]>("/api/schedules"),
     enabled: role === "ADMIN",
   });
 
@@ -92,9 +104,54 @@ export default function DashboardPage() {
   const tiedLeaders = standings?.filter((s) => s.totalPoints === leader?.totalPoints) ?? [];
   const leaderLabel = tiedLeaders.length > 1 ? `${tiedLeaders.length} teams tied` : (leader?.team.name ?? "—");
   const myLiveMatches = (myEvents ?? []).flatMap((e) => e.matches).filter((m) => m.status === "LIVE");
-  const pendingResumes = (adminMatches ?? []).filter(
-    (m) => m.status === "POSTPONED" && m.resumeRequestedAt && !m.resumeApprovedAt,
-  );
+  const myLiveSessions = (myEvents ?? []).flatMap((e) => e.schedules ?? []).filter((s) => s.status === "LIVE");
+  const liveCount = (liveMatches?.length ?? 0) + (liveSessions?.length ?? 0);
+  const pendingResumes = [
+    ...(adminMatches ?? [])
+      .filter((m) => m.status === "POSTPONED" && m.resumeRequestedAt && !m.resumeApprovedAt)
+      .map((m) => ({
+        id: m.id,
+        href: `/scoreboard/${m.id}`,
+        title: `${m.homeTeam.name} vs ${m.awayTeam.name}`,
+        eventName: m.sportEvent?.name,
+        requester: m.resumeRequestedBy?.name,
+        letter: m.resumeRequestReason,
+        postponeReason: m.postponeReason,
+      })),
+    ...(adminSessions ?? [])
+      .filter((s) => s.status === "POSTPONED" && s.resumeRequestedAt && !s.resumeApprovedAt)
+      .map((s) => ({
+        id: s.id,
+        href: `/scoreboard/session/${s.id}`,
+        title: s.title || "Solo session",
+        eventName: s.sportEvent?.name,
+        requester: s.resumeRequestedBy?.name,
+        letter: s.resumeRequestReason,
+        postponeReason: s.postponeReason,
+      })),
+  ];
+  const pendingControls = [
+    ...(adminMatches ?? [])
+      .filter((m) => m.status === "SCHEDULED" && m.controlRequestedAt && !m.controlApprovedAt)
+      .map((m) => ({
+        id: m.id,
+        href: `/scoreboard/${m.id}`,
+        title: `${m.homeTeam.name} vs ${m.awayTeam.name}`,
+        eventName: m.sportEvent?.name,
+        requester: m.controlRequestedBy?.name,
+        letter: m.controlRequestReason,
+      })),
+    ...(adminSessions ?? [])
+      .filter((s) => s.status === "SCHEDULED" && s.controlRequestedAt && !s.controlApprovedAt)
+      .map((s) => ({
+        id: s.id,
+        href: `/scoreboard/session/${s.id}`,
+        title: s.title || "Solo session",
+        eventName: s.sportEvent?.name,
+        requester: s.controlRequestedBy?.name,
+        letter: s.controlRequestReason,
+      })),
+  ];
 
   return (
     <div className="space-y-6">
@@ -119,7 +176,7 @@ export default function DashboardPage() {
 
       {role === "ADMIN" && (
         <section className="grid gap-4 md:grid-cols-4">
-          {loadingTeams || loadingEvents || loadingLive || loadingStandings ? (
+          {loadingTeams || loadingEvents || loadingLive || loadingLiveSessions || loadingStandings ? (
             [1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 rounded-2xl" />)
           ) : (
             <>
@@ -138,9 +195,9 @@ export default function DashboardPage() {
                 accent="from-teal-500/15 to-teal-500/0 text-teal-600 dark:text-teal-400"
               />
               <StatCard
-                label="Live Matches Now"
-                value={String(liveMatches?.length ?? 0)}
-                helper="across all events"
+                label="Live Games Now"
+                value={String(liveCount)}
+                helper="group matches and solo sessions"
                 icon={<Radio className="size-5 text-destructive" />}
                 accent="from-destructive/15 to-destructive/0 text-destructive"
               />
@@ -156,34 +213,61 @@ export default function DashboardPage() {
         </section>
       )}
 
+      {role === "ADMIN" && pendingControls.length > 0 && (
+        <Card className="border-primary/30 bg-card/85 shadow-lg ring-1 ring-primary/20 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Control requests</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Tabulators asked to control these scoreboards and go live. Approve them before they can start.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-border/60">
+              {pendingControls.map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium tracking-tight">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.eventName}
+                      {item.requester ? ` · requested by ${item.requester}` : ""}
+                    </p>
+                    {item.letter && <p className="mt-1 text-xs text-foreground/80">“{item.letter}”</p>}
+                  </div>
+                  <Button size="sm" className="shrink-0 gap-1.5" render={<Link href={item.href} />} nativeButton={false}>
+                    <Check className="size-3.5" />
+                    Review
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       {role === "ADMIN" && pendingResumes.length > 0 && (
         <Card className="border-amber-500/30 bg-card/85 shadow-lg ring-1 ring-amber-500/20 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-base">Resume requests</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Tabulators asked to resume these postponed matches. Approve them before they can go live.
+              Tabulators asked to resume these postponed games. Approve them before they can go live.
             </p>
           </CardHeader>
           <CardContent>
             <ul className="divide-y divide-border/60">
-              {pendingResumes.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+              {pendingResumes.map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <p className="truncate font-medium tracking-tight">
-                      {m.homeTeam.name} vs {m.awayTeam.name}
-                    </p>
+                    <p className="truncate font-medium tracking-tight">{item.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {m.sportEvent?.name}
-                      {m.resumeRequestedBy?.name ? ` · requested by ${m.resumeRequestedBy.name}` : ""}
+                      {item.eventName}
+                      {item.requester ? ` · requested by ${item.requester}` : ""}
                     </p>
-                    {m.resumeRequestReason && (
-                      <p className="mt-1 text-xs text-foreground/80">“{m.resumeRequestReason}”</p>
-                    )}
-                    {m.postponeReason && (
-                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Postponed: {m.postponeReason}</p>
+                    {item.letter && <p className="mt-1 text-xs text-foreground/80">“{item.letter}”</p>}
+                    {item.postponeReason && (
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Postponed: {item.postponeReason}</p>
                     )}
                   </div>
-                  <Button size="sm" className="shrink-0 gap-1.5" render={<Link href={`/scoreboard/${m.id}`} />} nativeButton={false}>
+                  <Button size="sm" className="shrink-0 gap-1.5" render={<Link href={item.href} />} nativeButton={false}>
                     <Check className="size-3.5" />
                     Review
                   </Button>
@@ -208,8 +292,8 @@ export default function DashboardPage() {
                   accent="from-primary/15 to-primary/0 text-primary"
                 />
                 <StatCard
-                  label="My Live Matches"
-                  value={String(myLiveMatches.length)}
+                  label="My Live Games"
+                  value={String(myLiveMatches.length + myLiveSessions.length)}
                   helper="open Scoreboard to update scores"
                   icon={<Radio className="size-5 text-destructive" />}
                   accent="from-destructive/15 to-destructive/0 text-destructive"
@@ -223,11 +307,11 @@ export default function DashboardPage() {
               <div>
                 <CardTitle className="text-base">Assigned Events</CardTitle>
                 <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                  Live matches can be controlled or updated from the{" "}
+                  Request admin approval from the{" "}
                   <Link href="/scoreboard" className="font-medium text-primary underline-offset-4 hover:underline">
                     Scoreboard
                   </Link>{" "}
-                  page. Events with no matches yet will not appear there until an admin schedules them.
+                  before controlling a live group match or solo session.
                 </p>
               </div>
               <Button
@@ -259,8 +343,9 @@ export default function DashboardPage() {
               ) : (
                 <ul className="divide-y divide-border/60">
                   {myEvents.map((event) => {
-                    const liveCount = event.matches.filter((m) => m.status === "LIVE").length;
-                    const isLive = liveCount > 0;
+                    const liveMatchCount = event.matches.filter((m) => m.status === "LIVE").length;
+                    const liveSessionCount = (event.schedules ?? []).filter((s) => s.status === "LIVE").length;
+                    const isLive = liveMatchCount + liveSessionCount > 0;
                     const hasMatches = event.matches.length > 0;
                     const isPlacement = event.type === "PLACEMENT";
                     const sessionCount = event.schedules?.length ?? 0;
@@ -277,14 +362,14 @@ export default function DashboardPage() {
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {isPlacement
                               ? sessionCount === 0
-                                ? "Solo event — results are entered on the event page (not Scoreboard)"
-                                : `Solo · ${sessionCount} public session${sessionCount === 1 ? "" : "s"}${
-                                    nextSession ? ` · next ${format.dateTime(nextSession.scheduledAt)}` : ""
-                                  }`
+                                ? "Solo event — schedule a session to control it from Scoreboard"
+                                : `Solo · ${sessionCount} session${sessionCount === 1 ? "" : "s"}${
+                                    liveSessionCount > 0 ? ` · ${liveSessionCount} live now` : ""
+                                  }${nextSession ? ` · next ${format.dateTime(nextSession.scheduledAt)}` : ""}`
                               : !hasMatches
                                 ? "No matches scheduled — will not show on Scoreboard yet"
                                 : isLive
-                                  ? `${event.matches.length} match${event.matches.length === 1 ? "" : "es"} · ${liveCount} live now`
+                                  ? `${event.matches.length} match${event.matches.length === 1 ? "" : "es"} · ${liveMatchCount} live now`
                                   : `${event.matches.length} match${event.matches.length === 1 ? "" : "es"}`}
                           </p>
                         </div>

@@ -39,12 +39,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       );
     }
 
-    const games = await db.$transaction((tx) =>
-      generateEventBracket(
-        tx,
-        id,
-        event.eventTeams.map((entry) => entry.teamId),
-      ),
+    const games = await db.$transaction(
+      (tx) =>
+        generateEventBracket(
+          tx,
+          id,
+          event.eventTeams.map((entry) => entry.teamId),
+        ),
+      { timeout: 20000 },
     );
     return NextResponse.json(games, { status: 201 });
   } catch (error) {

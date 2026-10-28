@@ -40,6 +40,8 @@ export async function GET(req: Request) {
         sportEvent: true,
         resumeRequestedBy: { select: { id: true, name: true } },
         resumeApprovedBy: { select: { id: true, name: true } },
+        controlRequestedBy: { select: { id: true, name: true } },
+        controlApprovedBy: { select: { id: true, name: true } },
       },
       orderBy: { scheduledAt: "asc" },
     });

@@ -4,11 +4,13 @@ import Link from "next/link";
 import useSWR from "swr";
 import { Trophy, Radio, ListOrdered, CalendarDays, BookOpen, ArrowUpRight } from "lucide-react";
 import { fetcher } from "@/lib/api-client";
-import type { Match, Season } from "@/lib/types";
+import type { EventSchedule, Match, Season } from "@/lib/types";
 
 export default function PublicHomePage() {
   const { data: season } = useSWR<Season | null>("/api/public/seasons/active", fetcher);
   const { data: liveMatches } = useSWR<Match[]>("/api/public/live-matches", fetcher, { refreshInterval: 5000 });
+  const { data: liveSessions } = useSWR<EventSchedule[]>("/api/public/live-sessions", fetcher, { refreshInterval: 5000 });
+  const liveCount = (liveMatches?.length ?? 0) + (liveSessions?.length ?? 0);
 
   return (
     <div className="space-y-8">
@@ -42,7 +44,7 @@ export default function PublicHomePage() {
           className="rounded-xl border border-border/70 bg-card/85 p-5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10"
         >
           <Radio className="size-5 text-destructive" />
-          <p className="mt-3 font-semibold tracking-tight">{liveMatches?.length ?? 0} Live Now</p>
+          <p className="mt-3 font-semibold tracking-tight">{liveCount} Live Now</p>
           <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
             See what&apos;s happening <ArrowUpRight className="size-3" />
           </p>

@@ -91,7 +91,16 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
 
   const statusMutation = useMutation({
     mutationFn: (vars: {
-      action: "START" | "FINISH" | "POSTPONE" | "REQUEST_RESUME" | "APPROVE_RESUME" | "REJECT_RESUME";
+      action:
+        | "START"
+        | "FINISH"
+        | "POSTPONE"
+        | "REQUEST_RESUME"
+        | "APPROVE_RESUME"
+        | "REJECT_RESUME"
+        | "REQUEST_CONTROL"
+        | "APPROVE_CONTROL"
+        | "REJECT_CONTROL";
       reason?: string;
     }) => apiFetch<Match>(`/api/matches/${matchId}/status`, { method: "PATCH", body: JSON.stringify(vars) }),
     onSuccess: (updated, vars) => {
@@ -106,6 +115,9 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
         REQUEST_RESUME: "Resume letter sent. Waiting for admin approval.",
         APPROVE_RESUME: "Resume approved. The tabulator can start the match.",
         REJECT_RESUME: "Resume request rejected.",
+        REQUEST_CONTROL: "Control request sent. Waiting for admin approval.",
+        APPROVE_CONTROL: "Control approved. The tabulator can go live.",
+        REJECT_CONTROL: "Control request rejected.",
       };
       toast.success(messages[vars.action] ?? "Match updated");
     },
@@ -155,23 +167,55 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
             {isLocked && <Lock className="mr-1 size-3" />}
             {match.status}
           </Badge>
-          {match.status === "SCHEDULED" && (
+          {match.status === "SCHEDULED" && role === "ADMIN" && (
             <>
+              {match.controlRequestedAt && !match.controlApprovedAt && (
+                <>
+                  <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "APPROVE_CONTROL" })}>
+                    <Check className="size-4" />
+                    Approve Control
+                  </Button>
+                  <Button variant="outline" className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "REJECT_CONTROL" })}>
+                    <X className="size-4" />
+                    Reject
+                  </Button>
+                </>
+              )}
               <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "START" })}>
                 <Play className="size-4" />
                 Start Match
               </Button>
-              <MatchReasonDialog
-                title="Postpone this match"
-                description="Write why this game needs to be postponed. The reason will appear on the public schedule."
-                placeholder="e.g. Heavy rain made the court unplayable..."
-                confirmLabel="Send postpone"
-                minLength={8}
-                pending={statusMutation.isPending}
-                trigger={<Button variant="outline" className="gap-2"><Pause className="size-4" />Postpone</Button>}
-                onSubmit={(reason) => statusMutation.mutate({ action: "POSTPONE", reason })}
-              />
             </>
+          )}
+          {match.status === "SCHEDULED" && role === "TABULATOR" && !match.controlApprovedAt && !match.controlRequestedAt && (
+            <MatchReasonDialog
+              title="Request live control"
+              description="Write a letter asking an admin to let you control this scoreboard and go live."
+              placeholder="e.g. Both teams are on court and officials are ready to start..."
+              confirmLabel="Send request"
+              minLength={15}
+              pending={statusMutation.isPending}
+              trigger={<Button className="gap-2">Request Control</Button>}
+              onSubmit={(reason) => statusMutation.mutate({ action: "REQUEST_CONTROL", reason })}
+            />
+          )}
+          {match.status === "SCHEDULED" && role === "TABULATOR" && match.controlApprovedAt && (
+            <Button className="gap-2" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ action: "START" })}>
+              <Play className="size-4" />
+              Start Match
+            </Button>
+          )}
+          {match.status === "SCHEDULED" && (
+            <MatchReasonDialog
+              title="Postpone this match"
+              description="Write why this game needs to be postponed. The reason will appear on the public schedule."
+              placeholder="e.g. Heavy rain made the court unplayable..."
+              confirmLabel="Send postpone"
+              minLength={8}
+              pending={statusMutation.isPending}
+              trigger={<Button variant="outline" className="gap-2"><Pause className="size-4" />Postpone</Button>}
+              onSubmit={(reason) => statusMutation.mutate({ action: "POSTPONE", reason })}
+            />
           )}
           {isPostponed && role === "ADMIN" && (
             <>
@@ -237,6 +281,25 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
         </div>
       </div>
 
+      {match.status === "SCHEDULED" && (
+        <div className="space-y-2 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          {match.controlRequestReason && (
+            <p>
+              <span className="font-medium text-foreground">Control letter: </span>
+              {match.controlRequestReason}
+            </p>
+          )}
+          <p>
+            {match.controlApprovedAt
+              ? `Admin approved live control${match.controlApprovedBy?.name ? ` (${match.controlApprovedBy.name})` : ""}. The tabulator can start this match.`
+              : match.controlRequestedAt
+                ? `Control requested${match.controlRequestedBy?.name ? ` by ${match.controlRequestedBy.name}` : ""}. Waiting for admin approval.`
+                : role === "TABULATOR"
+                  ? "Request admin approval before you can control this scoreboard and go live."
+                  : "An admin can start this match immediately, or approve a tabulator control request."}
+          </p>
+        </div>
+      )}
       {isFinished && (
         <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
           This match is finished and locked. Scores can no longer be changed.

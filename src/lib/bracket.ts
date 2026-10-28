@@ -30,6 +30,32 @@ export function bracketRoundLabel(round: number, totalRounds: number) {
 
 type Tx = Prisma.TransactionClient;
 
+type GameDraft = {
+  id: string;
+  sportEventId: string;
+  round: number;
+  position: number;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  winnerTeamId: string | null;
+  matchId: string | null;
+  nextGameId: string | null;
+  nextSlot: "HOME" | "AWAY" | null;
+};
+
+function findPairingMatch(
+  matches: { id: string; homeTeamId: string; awayTeamId: string; winnerTeamId: string | null }[],
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+) {
+  if (!homeTeamId || !awayTeamId) return undefined;
+  return matches.find(
+    (item) =>
+      (item.homeTeamId === homeTeamId && item.awayTeamId === awayTeamId) ||
+      (item.homeTeamId === awayTeamId && item.awayTeamId === homeTeamId),
+  );
+}
+
 export const bracketGameInclude = {
   homeTeam: true,
   awayTeam: true,
@@ -42,89 +68,112 @@ export async function generateEventBracket(tx: Tx, sportEventId: string, teamIds
     throw new Error("Enroll at least two teams before generating a bracket.");
   }
 
-  await tx.eventBracketGame.deleteMany({ where: { sportEventId } });
-
   const { pairings, totalRounds } = classicPairings(teamIds);
   const existingMatches = await tx.match.findMany({ where: { sportEventId } });
 
-  const created: { id: string; round: number; position: number }[] = [];
+  const drafts: GameDraft[] = [];
   for (let round = 1; round <= totalRounds; round += 1) {
     const count = pairings.length / 2 ** (round - 1);
     for (let position = 0; position < count; position += 1) {
-      const game = await tx.eventBracketGame.create({
-        data: { sportEventId, round, position },
+      drafts.push({
+        id: crypto.randomUUID(),
+        sportEventId,
+        round,
+        position,
+        homeTeamId: null,
+        awayTeamId: null,
+        winnerTeamId: null,
+        matchId: null,
+        nextGameId: null,
+        nextSlot: null,
       });
-      created.push({ id: game.id, round, position });
     }
   }
 
   const byRound = (round: number, position: number) =>
-    created.find((game) => game.round === round && game.position === position);
+    drafts.find((game) => game.round === round && game.position === position);
 
-  for (const game of created) {
+  for (const game of drafts) {
     if (game.round === totalRounds) continue;
     const next = byRound(game.round + 1, Math.floor(game.position / 2));
     if (!next) continue;
-    await tx.eventBracketGame.update({
-      where: { id: game.id },
-      data: { nextGameId: next.id, nextSlot: game.position % 2 === 0 ? "HOME" : "AWAY" },
+    game.nextGameId = next.id;
+    game.nextSlot = game.position % 2 === 0 ? "HOME" : "AWAY";
+  }
+
+  const knownMatches = existingMatches.map((item) => ({
+    id: item.id,
+    homeTeamId: item.homeTeamId,
+    awayTeamId: item.awayTeamId,
+    winnerTeamId: item.winnerTeamId,
+  }));
+  const matchesToCreate: {
+    id: string;
+    sportEventId: string;
+    homeTeamId: string;
+    awayTeamId: string;
+    scheduledAt: Date;
+    status: "SCHEDULED";
+  }[] = [];
+
+  function attachMatch(game: GameDraft) {
+    if (!game.homeTeamId || !game.awayTeamId || game.matchId) return;
+    const existing = findPairingMatch(knownMatches, game.homeTeamId, game.awayTeamId);
+    if (existing) {
+      game.matchId = existing.id;
+      if (!game.winnerTeamId && existing.winnerTeamId) game.winnerTeamId = existing.winnerTeamId;
+      return;
+    }
+    const id = crypto.randomUUID();
+    matchesToCreate.push({
+      id,
+      sportEventId,
+      homeTeamId: game.homeTeamId,
+      awayTeamId: game.awayTeamId,
+      scheduledAt: new Date(),
+      status: "SCHEDULED",
     });
+    knownMatches.push({
+      id,
+      homeTeamId: game.homeTeamId,
+      awayTeamId: game.awayTeamId,
+      winnerTeamId: null,
+    });
+    game.matchId = id;
+  }
+
+  function propagate(game: GameDraft) {
+    if (!game.winnerTeamId || !game.nextGameId || !game.nextSlot) return;
+    const next = drafts.find((item) => item.id === game.nextGameId);
+    if (!next) return;
+    if (game.nextSlot === "HOME") next.homeTeamId = game.winnerTeamId;
+    else next.awayTeamId = game.winnerTeamId;
+    attachMatch(next);
+    if (next.winnerTeamId) propagate(next);
   }
 
   for (const [position, pairing] of pairings.entries()) {
     const first = byRound(1, position);
     if (!first) continue;
-    const match = existingMatches.find(
-      (item) =>
-        pairing.homeTeamId &&
-        pairing.awayTeamId &&
-        ((item.homeTeamId === pairing.homeTeamId && item.awayTeamId === pairing.awayTeamId) ||
-          (item.homeTeamId === pairing.awayTeamId && item.awayTeamId === pairing.homeTeamId)),
-    );
-
-    let matchId = match?.id ?? null;
-    if (!matchId && pairing.homeTeamId && pairing.awayTeamId) {
-      const createdMatch = await tx.match.create({
-        data: {
-          sportEventId,
-          homeTeamId: pairing.homeTeamId,
-          awayTeamId: pairing.awayTeamId,
-          scheduledAt: new Date(),
-          status: "SCHEDULED",
-        },
-      });
-      matchId = createdMatch.id;
-    }
-
-    const winnerTeamId =
+    first.homeTeamId = pairing.homeTeamId;
+    first.awayTeamId = pairing.awayTeamId;
+    first.winnerTeamId =
       pairing.homeTeamId && !pairing.awayTeamId
         ? pairing.homeTeamId
         : !pairing.homeTeamId && pairing.awayTeamId
           ? pairing.awayTeamId
-          : (match?.winnerTeamId ?? null);
-
-    await tx.eventBracketGame.update({
-      where: { id: first.id },
-      data: {
-        homeTeamId: pairing.homeTeamId,
-        awayTeamId: pairing.awayTeamId,
-        matchId,
-        winnerTeamId,
-      },
-    });
-
-    if (winnerTeamId && matchId) {
-      await advanceBracketWinner(tx, matchId, winnerTeamId);
-    } else if (winnerTeamId) {
-      const game = await tx.eventBracketGame.findUniqueOrThrow({ where: { id: first.id } });
-      if (game.nextGameId && game.nextSlot) {
-        await tx.eventBracketGame.update({
-          where: { id: game.nextGameId },
-          data: game.nextSlot === "HOME" ? { homeTeamId: winnerTeamId } : { awayTeamId: winnerTeamId },
-        });
-      }
-    }
+          : null;
+    attachMatch(first);
+    if (first.winnerTeamId) propagate(first);
   }
+
+  await tx.eventBracketGame.deleteMany({ where: { sportEventId } });
+  if (matchesToCreate.length > 0) {
+    await tx.match.createMany({ data: matchesToCreate });
+  }
+  await tx.eventBracketGame.createMany({
+    data: [...drafts].sort((a, b) => b.round - a.round),
+  });
 
   return tx.eventBracketGame.findMany({
     where: { sportEventId },

@@ -18,10 +18,21 @@ export async function GET() {
             awayTeam: true,
             resumeRequestedBy: { select: { id: true, name: true } },
             resumeApprovedBy: { select: { id: true, name: true } },
+            controlRequestedBy: { select: { id: true, name: true } },
+            controlApprovedBy: { select: { id: true, name: true } },
           },
           orderBy: { scheduledAt: "asc" },
         },
-        schedules: { orderBy: { scheduledAt: "asc" } },
+        schedules: {
+          include: {
+            scores: { include: { team: true }, orderBy: { team: { name: "asc" } } },
+            resumeRequestedBy: { select: { id: true, name: true } },
+            resumeApprovedBy: { select: { id: true, name: true } },
+            controlRequestedBy: { select: { id: true, name: true } },
+            controlApprovedBy: { select: { id: true, name: true } },
+          },
+          orderBy: { scheduledAt: "asc" },
+        },
       },
       orderBy: { createdAt: "desc" },
     });

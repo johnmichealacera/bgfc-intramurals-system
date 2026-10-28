@@ -28,6 +28,9 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
     }
+    if (existing.status !== "SCHEDULED") {
+      return NextResponse.json({ error: "Only scheduled sessions can be edited." }, { status: 409 });
+    }
 
     const schedule = await db.eventSchedule.update({
       where: { id: scheduleId },
@@ -57,6 +60,9 @@ export async function DELETE(
     });
     if (!existing) {
       return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
+    }
+    if (existing.status !== "SCHEDULED") {
+      return NextResponse.json({ error: "Only scheduled sessions can be deleted." }, { status: 409 });
     }
 
     await db.eventSchedule.delete({ where: { id: scheduleId } });

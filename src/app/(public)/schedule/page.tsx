@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
 import { eventCategoryLabel, eventTypeLabel, format } from "@/lib/format";
-import type { Match, SportEvent, SportEventCategory, SportEventStatus } from "@/lib/types";
+import type { EventSchedule, Match, SportEvent, SportEventCategory, SportEventStatus } from "@/lib/types";
 
 const statusStyles: Record<SportEventStatus, string> = {
   UPCOMING: "bg-muted text-muted-foreground",
@@ -30,9 +30,15 @@ function eventGroup(event: SportEvent): SportEventCategory | "OTHER" {
 
 export default function SchedulePage() {
   const { data: events, isLoading } = useSWR<SportEvent[]>("/api/public/events", fetcher);
-  const postponed = (events ?? []).flatMap((event) =>
+  const postponedMatches = (events ?? []).flatMap((event) =>
     (event.matches ?? []).map((match) => ({ event, match })),
   );
+  const postponedSessions = (events ?? []).flatMap((event) =>
+    (event.schedules ?? [])
+      .filter((session) => session.status === "POSTPONED")
+      .map((session) => ({ event, session })),
+  );
+  const hasPostponed = postponedMatches.length + postponedSessions.length > 0;
 
   return (
     <div className="space-y-6">
@@ -56,15 +62,18 @@ export default function SchedulePage() {
         </div>
       ) : (
         <>
-          {postponed.length > 0 && (
+          {hasPostponed && (
             <section className="overflow-hidden rounded-2xl border border-amber-500/30 bg-amber-500/8 shadow-lg">
               <div className="flex items-center gap-2 border-b border-amber-500/20 px-5 py-3">
                 <Lock className="size-4 text-amber-600 dark:text-amber-400" />
                 <p className="text-sm font-semibold">Postponed games</p>
               </div>
               <ul className="divide-y divide-amber-500/15">
-                {postponed.map(({ event, match }) => (
-                  <PostponedRow key={match.id} event={event} match={match} />
+                {postponedMatches.map(({ event, match }) => (
+                  <PostponedMatchRow key={match.id} event={event} match={match} />
+                ))}
+                {postponedSessions.map(({ event, session }) => (
+                  <PostponedSessionRow key={session.id} event={event} session={session} />
                 ))}
               </ul>
             </section>
@@ -90,7 +99,7 @@ export default function SchedulePage() {
   );
 }
 
-function PostponedRow({ event, match }: { event: SportEvent; match: Match }) {
+function PostponedMatchRow({ event, match }: { event: SportEvent; match: Match }) {
   return (
     <li className="flex items-center justify-between gap-4 px-5 py-4">
       <div className="min-w-0">
@@ -107,6 +116,31 @@ function PostponedRow({ event, match }: { event: SportEvent; match: Match }) {
         </p>
         {match.postponeReason && (
           <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Reason: {match.postponeReason}</p>
+        )}
+      </div>
+      <Badge className="shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-400">
+        <Lock className="mr-1 size-3" />
+        Locked
+      </Badge>
+    </li>
+  );
+}
+
+function PostponedSessionRow({ event, session }: { event: SportEvent; session: EventSchedule }) {
+  return (
+    <li className="flex items-center justify-between gap-4 px-5 py-4">
+      <div className="min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {event.name}
+          {event.category ? ` · ${eventCategoryLabel(event.category)}` : ""}
+        </p>
+        <p className="font-medium">{session.title || "Solo session"}</p>
+        <p className="text-xs text-muted-foreground">
+          {format.dateTime(session.scheduledAt)}
+          {session.venue ? ` · ${session.venue}` : ""}
+        </p>
+        {session.postponeReason && (
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Reason: {session.postponeReason}</p>
         )}
       </div>
       <Badge className="shrink-0 bg-amber-500/15 text-amber-600 dark:text-amber-400">

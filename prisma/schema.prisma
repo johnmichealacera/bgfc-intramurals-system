@@ -60,10 +60,17 @@ model User {
 
   accounts         Account[]
   sessions         Session[]
-  eventAssignments EventTabulator[]
-  scoredMatches    Match[]          @relation("MatchUpdatedBy")
-  resumeRequests   Match[]          @relation("MatchResumeRequestedBy")
-  resumeApprovals  Match[]          @relation("MatchResumeApprovedBy")
+  eventAssignments           EventTabulator[]
+  scoredMatches              Match[]           @relation("MatchUpdatedBy")
+  resumeRequests             Match[]           @relation("MatchResumeRequestedBy")
+  resumeApprovals            Match[]           @relation("MatchResumeApprovedBy")
+  matchControlRequests       Match[]           @relation("MatchControlRequestedBy")
+  matchControlApprovals      Match[]           @relation("MatchControlApprovedBy")
+  scoredSchedules            EventSchedule[]   @relation("ScheduleUpdatedBy")
+  scheduleResumeRequests     EventSchedule[]   @relation("ScheduleResumeRequestedBy")
+  scheduleResumeApprovals    EventSchedule[]   @relation("ScheduleResumeApprovedBy")
+  scheduleControlRequests    EventSchedule[]   @relation("ScheduleControlRequestedBy")
+  scheduleControlApprovals   EventSchedule[]   @relation("ScheduleControlApprovedBy")
 
   @@map("users")
 }
@@ -146,6 +153,7 @@ model Team {
   placements      EventPlacement[]
   participants    Participant[]
   eventTeams      EventTeam[]
+  scheduleScores  EventScheduleScore[]
 
   @@unique([seasonId, name])
   @@index([seasonId])
@@ -201,19 +209,56 @@ model SportEvent {
 }
 
 model EventSchedule {
-  id           String   @id @default(cuid())
-  sportEventId String
-  title        String?
-  scheduledAt  DateTime
-  venue        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                       String      @id @default(cuid())
+  sportEventId             String
+  title                    String?
+  scheduledAt              DateTime
+  venue                    String?
+  status                   MatchStatus @default(SCHEDULED)
+  postponeReason           String?
+  resumeRequestedAt        DateTime?
+  resumeApprovedAt         DateTime?
+  resumeRequestedByUserId  String?
+  resumeApprovedByUserId   String?
+  resumeRequestReason      String?
+  controlRequestedAt       DateTime?
+  controlApprovedAt        DateTime?
+  controlRequestedByUserId String?
+  controlApprovedByUserId  String?
+  controlRequestReason     String?
+  updatedByUserId          String?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
 
-  sportEvent SportEvent @relation(fields: [sportEventId], references: [id], onDelete: Cascade)
+  sportEvent        SportEvent           @relation(fields: [sportEventId], references: [id], onDelete: Cascade)
+  scores            EventScheduleScore[]
+  updatedBy         User?                @relation("ScheduleUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  resumeRequestedBy User?                @relation("ScheduleResumeRequestedBy", fields: [resumeRequestedByUserId], references: [id], onDelete: SetNull)
+  resumeApprovedBy  User?                @relation("ScheduleResumeApprovedBy", fields: [resumeApprovedByUserId], references: [id], onDelete: SetNull)
+  controlRequestedBy User?               @relation("ScheduleControlRequestedBy", fields: [controlRequestedByUserId], references: [id], onDelete: SetNull)
+  controlApprovedBy  User?               @relation("ScheduleControlApprovedBy", fields: [controlApprovedByUserId], references: [id], onDelete: SetNull)
 
   @@index([sportEventId])
   @@index([scheduledAt])
+  @@index([status])
   @@map("event_schedules")
+}
+
+model EventScheduleScore {
+  id         String   @id @default(cuid())
+  scheduleId String
+  teamId     String
+  score      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  schedule EventSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  team     Team          @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@unique([scheduleId, teamId])
+  @@index([scheduleId])
+  @@index([teamId])
+  @@map("event_schedule_scores")
 }
 
 model EventTeam {
@@ -280,18 +325,25 @@ model Match {
   resumeApprovedAt        DateTime?
   resumeRequestedByUserId String?
   resumeApprovedByUserId  String?
-  resumeRequestReason     String?
-  createdAt               DateTime    @default(now())
-  updatedAt               DateTime    @updatedAt
+  resumeRequestReason      String?
+  controlRequestedAt       DateTime?
+  controlApprovedAt        DateTime?
+  controlRequestedByUserId String?
+  controlApprovedByUserId  String?
+  controlRequestReason     String?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
 
-  sportEvent        SportEvent         @relation(fields: [sportEventId], references: [id], onDelete: Restrict)
-  homeTeam          Team               @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
-  awayTeam          Team               @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
-  winnerTeam        Team?              @relation("MatchWinnerTeam", fields: [winnerTeamId], references: [id], onDelete: Restrict)
-  updatedBy         User?              @relation("MatchUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
-  resumeRequestedBy User?              @relation("MatchResumeRequestedBy", fields: [resumeRequestedByUserId], references: [id], onDelete: SetNull)
-  resumeApprovedBy  User?              @relation("MatchResumeApprovedBy", fields: [resumeApprovedByUserId], references: [id], onDelete: SetNull)
-  bracketGame       EventBracketGame?
+  sportEvent         SportEvent         @relation(fields: [sportEventId], references: [id], onDelete: Restrict)
+  homeTeam           Team               @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam           Team               @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  winnerTeam         Team?              @relation("MatchWinnerTeam", fields: [winnerTeamId], references: [id], onDelete: Restrict)
+  updatedBy          User?              @relation("MatchUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  resumeRequestedBy  User?              @relation("MatchResumeRequestedBy", fields: [resumeRequestedByUserId], references: [id], onDelete: SetNull)
+  resumeApprovedBy   User?              @relation("MatchResumeApprovedBy", fields: [resumeApprovedByUserId], references: [id], onDelete: SetNull)
+  controlRequestedBy User?              @relation("MatchControlRequestedBy", fields: [controlRequestedByUserId], references: [id], onDelete: SetNull)
+  controlApprovedBy  User?              @relation("MatchControlApprovedBy", fields: [controlApprovedByUserId], references: [id], onDelete: SetNull)
+  bracketGame        EventBracketGame?
 
   @@index([sportEventId, status])
   @@index([status])

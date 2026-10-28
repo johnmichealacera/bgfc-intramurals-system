@@ -125,17 +125,38 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
             <p className="p-6 text-sm text-muted-foreground">Schedule will be posted soon.</p>
           ) : (
             <ul className="divide-y divide-border/60">
-              {event.schedules.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-4 px-5 py-4">
-                  <div>
-                    <p className="font-medium">{s.title || "Session"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format.dateTime(s.scheduledAt)}
-                      {s.venue ? ` · ${s.venue}` : ""}
-                    </p>
-                  </div>
-                </li>
-              ))}
+              {event.schedules.map((s) => {
+                const locked = s.status === "POSTPONED" || s.status === "FINISHED";
+                return (
+                  <li key={s.id} className="flex items-start justify-between gap-4 px-5 py-4">
+                    <div className="min-w-0">
+                      <p className="font-medium">{s.title || "Session"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format.dateTime(s.scheduledAt)}
+                        {s.venue ? ` · ${s.venue}` : ""}
+                      </p>
+                      {s.status === "POSTPONED" && s.postponeReason && (
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Reason: {s.postponeReason}</p>
+                      )}
+                      {s.status === "LIVE" && (s.scores ?? []).length > 0 && (
+                        <ul className="mt-2 space-y-1">
+                          {s.scores?.map((row) => (
+                            <li key={row.id} className="flex items-center gap-2 text-xs">
+                              <span className="size-2.5 rounded-full" style={{ backgroundColor: row.team.colorHex }} />
+                              <span>{row.team.name}</span>
+                              <span className="tabular-nums font-semibold">{row.score}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <Badge className={matchStatusStyles[s.status] ?? matchStatusStyles.SCHEDULED}>
+                      {locked && <Lock className="mr-1 size-3" />}
+                      {s.status}
+                    </Badge>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

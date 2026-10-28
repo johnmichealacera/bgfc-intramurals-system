@@ -25,6 +25,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         sportEvent: true,
         resumeRequestedBy: { select: { id: true, name: true } },
         resumeApprovedBy: { select: { id: true, name: true } },
+        controlRequestedBy: { select: { id: true, name: true } },
+        controlApprovedBy: { select: { id: true, name: true } },
       },
     });
     return NextResponse.json(match);

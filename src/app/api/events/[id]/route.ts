@@ -27,6 +27,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             winnerTeam: true,
             resumeRequestedBy: { select: { id: true, name: true } },
             resumeApprovedBy: { select: { id: true, name: true } },
+            controlRequestedBy: { select: { id: true, name: true } },
+            controlApprovedBy: { select: { id: true, name: true } },
           },
           orderBy: { scheduledAt: "asc" },
         },
@@ -39,7 +41,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           },
           orderBy: [{ round: "asc" }, { position: "asc" }],
         },
-        schedules: { orderBy: { scheduledAt: "asc" } },
+        schedules: {
+          include: {
+            scores: { include: { team: true }, orderBy: { team: { name: "asc" } } },
+            resumeRequestedBy: { select: { id: true, name: true } },
+            resumeApprovedBy: { select: { id: true, name: true } },
+            controlRequestedBy: { select: { id: true, name: true } },
+            controlApprovedBy: { select: { id: true, name: true } },
+          },
+          orderBy: { scheduledAt: "asc" },
+        },
         placements: { include: { team: true }, orderBy: { placement: "asc" } },
         eventTeams: {
           include: {

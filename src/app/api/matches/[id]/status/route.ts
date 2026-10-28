@@ -7,7 +7,17 @@ import { db } from "@/lib/db";
 import { advanceBracketWinner } from "@/lib/bracket";
 
 const actionSchema = z.object({
-  action: z.enum(["START", "FINISH", "POSTPONE", "REQUEST_RESUME", "APPROVE_RESUME", "REJECT_RESUME"]),
+  action: z.enum([
+    "START",
+    "FINISH",
+    "POSTPONE",
+    "REQUEST_RESUME",
+    "APPROVE_RESUME",
+    "REJECT_RESUME",
+    "REQUEST_CONTROL",
+    "APPROVE_CONTROL",
+    "REJECT_CONTROL",
+  ]),
   reason: z.string().optional(),
 });
 
@@ -18,6 +28,8 @@ const matchInclude = {
   sportEvent: true,
   resumeRequestedBy: { select: { id: true, name: true } },
   resumeApprovedBy: { select: { id: true, name: true } },
+  controlRequestedBy: { select: { id: true, name: true } },
+  controlApprovedBy: { select: { id: true, name: true } },
 } as const;
 
 const clearResume = {
@@ -26,6 +38,14 @@ const clearResume = {
   resumeRequestedByUserId: null,
   resumeApprovedByUserId: null,
   resumeRequestReason: null,
+};
+
+const clearControl = {
+  controlRequestedAt: null,
+  controlApprovedAt: null,
+  controlRequestedByUserId: null,
+  controlApprovedByUserId: null,
+  controlRequestReason: null,
 };
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +60,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const role = session!.user.role;
 
     if (action === "START") {
+      if (match.status === "SCHEDULED" && role === "TABULATOR" && !match.controlApprovedAt) {
+        return NextResponse.json(
+          { error: "Request admin approval to control this live game first." },
+          { status: 409 },
+        );
+      }
       if (match.status === "POSTPONED" && role === "TABULATOR" && !match.resumeApprovedAt) {
         return NextResponse.json(
           { error: "An admin must approve this resume before you can start the match." },
@@ -49,7 +75,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
       const result = await db.match.updateMany({
         where: { id, status: { in: ["SCHEDULED", "POSTPONED"] } },
-        data: { status: "LIVE", updatedByUserId: userId, ...clearResume },
+        data: { status: "LIVE", updatedByUserId: userId, ...clearResume, ...clearControl },
       });
       if (result.count === 0) {
         return NextResponse.json({ error: "Only scheduled or postponed matches can be started." }, { status: 409 });
@@ -65,7 +91,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
       const result = await db.match.updateMany({
         where: { id, status: { in: ["SCHEDULED", "LIVE"] } },
-        data: { status: "POSTPONED", updatedByUserId: userId, postponeReason, ...clearResume },
+        data: { status: "POSTPONED", updatedByUserId: userId, postponeReason, ...clearResume, ...clearControl },
       });
       if (result.count === 0) {
         return NextResponse.json({ error: "Only scheduled or live matches can be postponed." }, { status: 409 });
@@ -125,6 +151,65 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       const updated = await db.match.update({
         where: { id },
         data: clearResume,
+        include: matchInclude,
+      });
+      return NextResponse.json(updated);
+    }
+
+    if (action === "REQUEST_CONTROL") {
+      assertRole(session, ["TABULATOR"]);
+      const letter = reason.trim();
+      if (letter.length < 15) {
+        return NextResponse.json(
+          { error: "Write a control letter (at least 15 characters) before sending the request." },
+          { status: 400 },
+        );
+      }
+      if (match.status !== "SCHEDULED") {
+        return NextResponse.json({ error: "Only scheduled matches can request live control." }, { status: 409 });
+      }
+      if (match.controlApprovedAt) {
+        const fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
+        return NextResponse.json(fresh);
+      }
+      const updated = await db.match.update({
+        where: { id },
+        data: {
+          controlRequestedAt: new Date(),
+          controlRequestedByUserId: userId,
+          controlApprovedAt: null,
+          controlApprovedByUserId: null,
+          controlRequestReason: letter,
+        },
+        include: matchInclude,
+      });
+      return NextResponse.json(updated);
+    }
+
+    if (action === "APPROVE_CONTROL") {
+      assertRole(session, ["ADMIN"]);
+      if (match.status !== "SCHEDULED") {
+        return NextResponse.json({ error: "Only scheduled matches can be approved for live control." }, { status: 409 });
+      }
+      if (!match.controlRequestedAt) {
+        return NextResponse.json({ error: "No control request is pending for this match." }, { status: 409 });
+      }
+      const updated = await db.match.update({
+        where: { id },
+        data: { controlApprovedAt: new Date(), controlApprovedByUserId: userId },
+        include: matchInclude,
+      });
+      return NextResponse.json(updated);
+    }
+
+    if (action === "REJECT_CONTROL") {
+      assertRole(session, ["ADMIN"]);
+      if (match.status !== "SCHEDULED") {
+        return NextResponse.json({ error: "Only scheduled matches can have a control request rejected." }, { status: 409 });
+      }
+      const updated = await db.match.update({
+        where: { id },
+        data: clearControl,
         include: matchInclude,
       });
       return NextResponse.json(updated);
