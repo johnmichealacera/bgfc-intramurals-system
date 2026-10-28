@@ -20,9 +20,32 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const { id } = await params;
     const body = updateSchema.parse(await req.json());
+    const fullName = body.fullName?.trim();
+
+    if (fullName) {
+      const current = await db.participant.findUniqueOrThrow({
+        where: { id },
+        select: { seasonId: true },
+      });
+      const duplicate = await db.participant.findFirst({
+        where: {
+          seasonId: current.seasonId,
+          id: { not: id },
+          fullName: { equals: fullName, mode: "insensitive" },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        return NextResponse.json(
+          { error: "A participant with this full name already exists in this season." },
+          { status: 409 },
+        );
+      }
+    }
+
     const participant = await db.participant.update({
       where: { id },
-      data: body,
+      data: { ...body, ...(fullName ? { fullName } : {}) },
       include: { team: { select: { id: true, name: true, colorHex: true } } },
     });
     return NextResponse.json(participant);

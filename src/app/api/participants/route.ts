@@ -53,8 +53,24 @@ export async function POST(req: Request) {
     assertRole(session, ["ADMIN"]);
 
     const body = participantSchema.parse(await req.json());
+    const fullName = body.fullName.trim();
+
+    const duplicate = await db.participant.findFirst({
+      where: {
+        seasonId: body.seasonId,
+        fullName: { equals: fullName, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "A participant with this full name already exists in this season." },
+        { status: 409 },
+      );
+    }
+
     const participant = await db.participant.create({
-      data: { ...body, teamId: body.teamId ?? null },
+      data: { ...body, fullName, teamId: body.teamId ?? null },
       include: { team: { select: { id: true, name: true, colorHex: true } } },
     });
     return NextResponse.json(participant, { status: 201 });
