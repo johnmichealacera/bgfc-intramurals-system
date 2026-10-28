@@ -48,6 +48,11 @@ enum MatchStatus {
   POSTPONED
 }
 
+enum MatchPhase {
+  ROUND_ROBIN
+  ELIMINATION
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -316,6 +321,7 @@ model Match {
   homeScore               Int         @default(0)
   awayScore               Int         @default(0)
   status                  MatchStatus @default(SCHEDULED)
+  phase                   MatchPhase  @default(ROUND_ROBIN)
   winnerTeamId            String?
   scheduledAt             DateTime
   venue                   String?
@@ -346,6 +352,7 @@ model Match {
   bracketGame        EventBracketGame?
 
   @@index([sportEventId, status])
+  @@index([sportEventId, phase])
   @@index([status])
   @@index([scheduledAt])
   @@map("matches")

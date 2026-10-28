@@ -76,6 +76,7 @@ export type Sport = {
 };
 
 export type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED";
+export type MatchPhase = "ROUND_ROBIN" | "ELIMINATION";
 
 export type EventScheduleScore = {
   id: string;
@@ -155,6 +156,7 @@ export type Match = {
   homeScore: number;
   awayScore: number;
   status: MatchStatus;
+  phase: MatchPhase;
   winnerTeamId: string | null;
   scheduledAt: string;
   venue: string | null;

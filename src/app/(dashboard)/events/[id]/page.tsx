@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays, Search, Lock, GitBranch } from "lucide-react";
+import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays, Search, Lock, GitBranch, Shuffle } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
 import { ScheduleSessionDialog } from "@/components/dashboard/schedule-session-dialog";
@@ -21,6 +21,7 @@ import { format, eventCategoryLabel, eventTypeLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import { getEnrollmentBlockReason, MAX_EVENT_ENTRIES } from "@/lib/enrollment-rules";
 import { EventBracket } from "@/components/event-bracket";
+import { roundRobinStandings } from "@/lib/bracket";
 import type { AppUser, Participant, SportEventDetail, Team } from "@/lib/types";
 
 const matchStatusStyles: Record<string, string> = {
@@ -164,12 +165,22 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to finalize results"),
   });
 
+  const generatePairingsMutation = useMutation({
+    mutationFn: () => apiFetch(`/api/events/${id}/pairings`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["event", id] });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      toast.success("Round-robin pairings generated");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to generate pairings"),
+  });
+
   const generateBracketMutation = useMutation({
     mutationFn: () => apiFetch(`/api/events/${id}/bracket`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["event", id] });
       queryClient.invalidateQueries({ queryKey: ["matches"] });
-      toast.success("Elimination bracket generated");
+      toast.success("Elimination bracket generated from round-robin standings");
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to generate bracket"),
   });
@@ -461,7 +472,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             <CardTitle className="text-base">Elimination Bracket</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
               {event.type === "TEAM_VS_TEAM"
-                ? "Public single-elimination tree. Winners advance when a match is finished."
+                ? "Seeded from round-robin wins, then point difference. Best record gets the easiest path to quarters, semis, and the final."
                 : "Public finals field for this solo event. Rankings appear after finalize."}
             </p>
           </div>
@@ -482,7 +493,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           <EventBracket
             games={event.bracketGames ?? []}
             placements={event.placements}
-            fieldTeams={event.eventTeams.map((et) => et.team)}
+            fieldTeams={event.type === "PLACEMENT" ? event.eventTeams.map((et) => et.team) : undefined}
           />
         </CardContent>
       </Card>
@@ -564,64 +575,114 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
       {event.type === "TEAM_VS_TEAM" && (
         <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Matches</CardTitle>
-            <ScheduleMatchDialog events={[event]} teams={enrolledTeams} defaultEventId={event.id} />
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Matches</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Generate pairings so every enrolled team plays every other team. Home and away are random.
+                After those games have results, generate the elimination bracket from the standings.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={generatePairingsMutation.isPending || event.eventTeams.length < 2}
+                onClick={() => generatePairingsMutation.mutate()}
+              >
+                <Shuffle className="size-3.5" />
+                {generatePairingsMutation.isPending ? "Pairing..." : "Generate pairings"}
+              </Button>
+              <ScheduleMatchDialog events={[event]} teams={enrolledTeams} defaultEventId={event.id} />
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {event.matches.length === 0 ? (
               <p className="px-6 pb-6 text-sm text-muted-foreground">No matches scheduled yet.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Matchup</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>When</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {event.matches.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium">
-                        <p>
-                          {m.homeTeam.name} vs {m.awayTeam.name}
-                        </p>
-                        {m.status === "POSTPONED" && m.postponeReason && (
-                          <p className="mt-1 text-xs font-normal text-amber-700 dark:text-amber-400">
-                            Reason: {m.postponeReason}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="tabular-nums">
-                        {m.homeScore} – {m.awayScore}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{format.dateTime(m.scheduledAt)}</TableCell>
-                      <TableCell>
-                        <Badge className={matchStatusStyles[m.status]}>{m.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          render={<Link href={`/scoreboard/${m.id}`} />}
-                          nativeButton={false}
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                        >
-                          {m.status === "FINISHED" || m.status === "POSTPONED" ? (
-                            <Lock className="size-3.5" />
-                          ) : (
-                            <Radio className="size-3.5" />
-                          )}
-                          {m.status === "FINISHED" ? "View" : m.status === "POSTPONED" ? "Locked" : "Control"}
-                        </Button>
-                      </TableCell>
+              <>
+                {event.eventTeams.length > 0 && (
+                  <div className="border-b border-border/60 px-6 py-4">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Round-robin standings
+                    </p>
+                    <ul className="grid gap-1.5 sm:grid-cols-2">
+                      {roundRobinStandings(
+                        event.eventTeams.map((entry) => entry.teamId),
+                        event.matches,
+                      ).map((row, index) => {
+                        const team = event.eventTeams.find((entry) => entry.teamId === row.teamId)?.team;
+                        if (!team) return null;
+                        return (
+                          <li key={row.teamId} className="flex items-center gap-2 text-sm">
+                            <span className="w-4 text-xs text-muted-foreground">{index + 1}</span>
+                            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: team.colorHex }} />
+                            <span className="min-w-0 flex-1 truncate font-medium">{team.name}</span>
+                            <span className="tabular-nums text-xs text-muted-foreground">
+                              {row.wins}–{row.losses}
+                              {row.diff !== 0 ? ` · ${row.diff > 0 ? "+" : ""}${row.diff}` : ""}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Matchup</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>When</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {event.matches.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">
+                          <p className="flex flex-wrap items-center gap-2">
+                            {m.homeTeam.name} vs {m.awayTeam.name}
+                            <Badge variant="outline" className="font-normal">
+                              {(m.phase ?? "ROUND_ROBIN") === "ELIMINATION" ? "Elimination" : "Round robin"}
+                            </Badge>
+                          </p>
+                          {m.status === "POSTPONED" && m.postponeReason && (
+                            <p className="mt-1 text-xs font-normal text-amber-700 dark:text-amber-400">
+                              Reason: {m.postponeReason}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="tabular-nums">
+                          {m.homeScore} – {m.awayScore}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{format.dateTime(m.scheduledAt)}</TableCell>
+                        <TableCell>
+                          <Badge className={matchStatusStyles[m.status]}>{m.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            render={<Link href={`/scoreboard/${m.id}`} />}
+                            nativeButton={false}
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                          >
+                            {m.status === "FINISHED" || m.status === "POSTPONED" ? (
+                              <Lock className="size-3.5" />
+                            ) : (
+                              <Radio className="size-3.5" />
+                            )}
+                            {m.status === "FINISHED" ? "View" : m.status === "POSTPONED" ? "Locked" : "Control"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
             )}
           </CardContent>
         </Card>
