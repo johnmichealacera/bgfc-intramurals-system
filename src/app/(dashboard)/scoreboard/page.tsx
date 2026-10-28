@@ -90,7 +90,7 @@ export default function ScoreboardListPage() {
     <div className="space-y-6">
       <PageHeader
         title="Scoreboard"
-        description="Score live group matches and solo sessions. Tabulators request admin approval before going live. Postponed and finished games stay visible but locked."
+        description="Score live group matches and solo sessions. Tabulators request admin approval before going live. Admins can correct a finished score with a reason."
         actions={
           <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
             <SelectTrigger className="w-48">
@@ -134,7 +134,7 @@ export default function ScoreboardListPage() {
           />
           <ItemSection
             title="Finished"
-            hint="Finished scores are locked and cannot be changed."
+            hint="Finished scores stay locked for tabulators. An admin can correct them with a reason."
             items={finished}
           />
         </>

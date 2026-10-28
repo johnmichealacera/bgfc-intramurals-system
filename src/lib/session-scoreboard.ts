@@ -8,6 +8,7 @@ export const scheduleInclude = {
   resumeApprovedBy: { select: { id: true, name: true } },
   controlRequestedBy: { select: { id: true, name: true } },
   controlApprovedBy: { select: { id: true, name: true } },
+  scoreCorrectedBy: { select: { id: true, name: true } },
 } satisfies Prisma.EventScheduleInclude;
 
 export const clearResume = {

@@ -104,6 +104,9 @@ export type EventSchedule = {
   resumeApprovedBy?: { id: string; name: string } | null;
   controlRequestedBy?: { id: string; name: string } | null;
   controlApprovedBy?: { id: string; name: string } | null;
+  scoreCorrectedAt: string | null;
+  scoreCorrectionReason: string | null;
+  scoreCorrectedBy?: { id: string; name: string } | null;
   scores?: EventScheduleScore[];
   sportEvent?: SportEvent;
 };
@@ -171,6 +174,9 @@ export type Match = {
   controlRequestReason: string | null;
   controlRequestedBy?: { id: string; name: string } | null;
   controlApprovedBy?: { id: string; name: string } | null;
+  scoreCorrectedAt: string | null;
+  scoreCorrectionReason: string | null;
+  scoreCorrectedBy?: { id: string; name: string } | null;
   homeTeam: Team;
   awayTeam: Team;
   winnerTeam: Team | null;

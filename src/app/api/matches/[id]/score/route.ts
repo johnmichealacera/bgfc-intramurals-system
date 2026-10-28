@@ -1,24 +1,32 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions, assertEventAccess } from "@/lib/auth";
+import { authOptions, assertEventAccess, assertRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
+import { advanceBracketWinner } from "@/lib/bracket";
 
-const scoreSchema = z
+const liveSchema = z
   .object({
     team: z.enum(["HOME", "AWAY"]),
     delta: z.number().int().min(-5).max(5),
   })
   .refine((data) => data.delta !== 0, { message: "delta must not be zero" });
 
-const matchInclude = { homeTeam: true, awayTeam: true, winnerTeam: true, sportEvent: true } as const;
+const correctSchema = z.object({
+  homeScore: z.number().int().min(0).max(999),
+  awayScore: z.number().int().min(0).max(999),
+  reason: z.string().trim().min(8, "Write a reason (at least 8 characters)."),
+});
 
-/**
- * Atomic increment/decrement — never read-then-write. A negative delta uses a
- * conditional updateMany so a race can't drive the score below zero; zero rows
- * affected there is treated as a floor no-op, not an error.
- */
+const matchInclude = {
+  homeTeam: true,
+  awayTeam: true,
+  winnerTeam: true,
+  sportEvent: true,
+  scoreCorrectedBy: { select: { id: true, name: true } },
+} as const;
+
 async function applyDelta(id: string, team: "HOME" | "AWAY", delta: number, userId: string) {
   if (team === "HOME") {
     return delta > 0
@@ -46,8 +54,43 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const session = await getServerSession(authOptions);
     const { id } = await params;
-    const { team, delta } = scoreSchema.parse(await req.json());
+    const body = await req.json();
+    const correction = correctSchema.safeParse(body);
+    if (correction.success) {
+      assertRole(session, ["ADMIN"]);
+      const match = await db.match.findUniqueOrThrow({ where: { id } });
+      if (match.status !== "FINISHED") {
+        return NextResponse.json({ error: "Only finished matches can have scores corrected." }, { status: 409 });
+      }
 
+      const winnerTeamId =
+        correction.data.homeScore === correction.data.awayScore
+          ? null
+          : correction.data.homeScore > correction.data.awayScore
+            ? match.homeTeamId
+            : match.awayTeamId;
+
+      const updated = await db.$transaction(async (tx) => {
+        const row = await tx.match.update({
+          where: { id },
+          data: {
+            homeScore: correction.data.homeScore,
+            awayScore: correction.data.awayScore,
+            winnerTeamId,
+            updatedByUserId: session!.user.id,
+            scoreCorrectedAt: new Date(),
+            scoreCorrectedByUserId: session!.user.id,
+            scoreCorrectionReason: correction.data.reason,
+          },
+          include: matchInclude,
+        });
+        await advanceBracketWinner(tx, id, winnerTeamId);
+        return row;
+      });
+      return NextResponse.json(updated);
+    }
+
+    const { team, delta } = liveSchema.parse(body);
     const match = await db.match.findUniqueOrThrow({ where: { id } });
     await assertEventAccess(session, match.sportEventId);
 
@@ -56,7 +99,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (result.count === 0) {
       const fresh = await db.match.findUniqueOrThrow({ where: { id }, include: matchInclude });
       if (fresh.status === "FINISHED") {
-        return NextResponse.json({ error: "Finished matches are locked and cannot be scored." }, { status: 409 });
+        return NextResponse.json({ error: "Finished matches are locked. An admin can correct them with a reason." }, { status: 409 });
       }
       if (fresh.status === "POSTPONED") {
         return NextResponse.json({ error: "Postponed matches are locked until they are resumed." }, { status: 409 });

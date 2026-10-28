@@ -5,13 +5,14 @@ import useSWR from "swr";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { Minus, Plus, Play, Flag, MapPin, Clock, Lock, Pause, Check, X } from "lucide-react";
+import { Minus, Plus, Play, Flag, MapPin, Clock, Lock, Pause, Check, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher, apiFetch, ApiError } from "@/lib/api-client";
 import { format } from "@/lib/format";
 import { MatchReasonDialog } from "@/components/dashboard/match-reason-dialog";
+import { CorrectScoreDialog } from "@/components/dashboard/correct-score-dialog";
 import type { Match } from "@/lib/types";
 
 function TeamPanel({
@@ -87,6 +88,18 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
       mutate(updated, { revalidate: false });
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update score"),
+  });
+
+  const correctMutation = useMutation({
+    mutationFn: (vars: { homeScore: number; awayScore: number; reason: string }) =>
+      apiFetch<Match>(`/api/matches/${matchId}/score`, { method: "PATCH", body: JSON.stringify(vars) }),
+    onSuccess: (updated) => {
+      mutate(updated, { revalidate: false });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      queryClient.invalidateQueries({ queryKey: ["public", "standings"] });
+      toast.success("Finished score corrected");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to correct score"),
   });
 
   const statusMutation = useMutation({
@@ -278,6 +291,28 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
               </Button>
             </>
           )}
+          {isFinished && role === "ADMIN" && (
+            <CorrectScoreDialog
+              teams={[
+                { id: "HOME", name: match.homeTeam.name, score: match.homeScore },
+                { id: "AWAY", name: match.awayTeam.name, score: match.awayScore },
+              ]}
+              pending={correctMutation.isPending}
+              trigger={
+                <Button variant="outline" className="gap-2">
+                  <Pencil className="size-4" />
+                  Correct scores
+                </Button>
+              }
+              onSubmit={(scores, reason) =>
+                correctMutation.mutate({
+                  homeScore: scores.find((row) => row.id === "HOME")?.score ?? match.homeScore,
+                  awayScore: scores.find((row) => row.id === "AWAY")?.score ?? match.awayScore,
+                  reason,
+                })
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -301,9 +336,20 @@ export default function ScoreboardControlPage({ params }: { params: Promise<{ ma
         </div>
       )}
       {isFinished && (
-        <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          This match is finished and locked. Scores can no longer be changed.
-        </p>
+        <div className="space-y-2 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <p>
+            {role === "ADMIN"
+              ? "This match is finished. An admin can correct the final score with a reason."
+              : "This match is finished and locked. Ask an admin if the score is wrong."}
+          </p>
+          {match.scoreCorrectionReason && (
+            <p>
+              <span className="font-medium text-foreground">Last correction: </span>
+              {match.scoreCorrectionReason}
+              {match.scoreCorrectedBy?.name ? ` (${match.scoreCorrectedBy.name})` : ""}
+            </p>
+          )}
+        </div>
       )}
       {isPostponed && (
         <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">

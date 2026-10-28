@@ -5,13 +5,14 @@ import useSWR from "swr";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { Minus, Plus, Play, Flag, MapPin, Clock, Lock, Pause, Check, X } from "lucide-react";
+import { Minus, Plus, Play, Flag, MapPin, Clock, Lock, Pause, Check, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher, apiFetch, ApiError } from "@/lib/api-client";
 import { format, sessionSides, sessionVsLabel } from "@/lib/format";
 import { MatchReasonDialog } from "@/components/dashboard/match-reason-dialog";
+import { CorrectScoreDialog } from "@/components/dashboard/correct-score-dialog";
 import type { EventSchedule } from "@/lib/types";
 
 function TeamPanel({
@@ -80,6 +81,18 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
       mutate(updated, { revalidate: false });
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update score"),
+  });
+
+  const correctMutation = useMutation({
+    mutationFn: (vars: { scores: { teamId: string; score: number }[]; reason: string }) =>
+      apiFetch<EventSchedule>(`/api/schedules/${scheduleId}/score`, { method: "PATCH", body: JSON.stringify(vars) }),
+    onSuccess: (updated) => {
+      mutate(updated, { revalidate: false });
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      queryClient.invalidateQueries({ queryKey: ["public", "standings"] });
+      toast.success("Finished score corrected");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to correct score"),
   });
 
   const statusMutation = useMutation({
@@ -275,6 +288,27 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
               </Button>
             </>
           )}
+          {isFinished && role === "ADMIN" && home && away && (
+            <CorrectScoreDialog
+              teams={[
+                { id: home.teamId, name: home.team.name, score: home.score },
+                { id: away.teamId, name: away.team.name, score: away.score },
+              ]}
+              pending={correctMutation.isPending}
+              trigger={
+                <Button variant="outline" className="gap-2">
+                  <Pencil className="size-4" />
+                  Correct scores
+                </Button>
+              }
+              onSubmit={(drafts, reason) =>
+                correctMutation.mutate({
+                  scores: drafts.map((row) => ({ teamId: row.id, score: row.score })),
+                  reason,
+                })
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -298,9 +332,20 @@ export default function SessionScoreboardPage({ params }: { params: Promise<{ sc
         </div>
       )}
       {isFinished && (
-        <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          This session is finished and locked. Scores can no longer be changed. Use Finalize Results on the event page to award placement points.
-        </p>
+        <div className="space-y-2 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <p>
+            {role === "ADMIN"
+              ? "This session is finished. An admin can correct the final score with a reason."
+              : "This session is finished and locked. Ask an admin if the score is wrong."}
+          </p>
+          {game.scoreCorrectionReason && (
+            <p>
+              <span className="font-medium text-foreground">Last correction: </span>
+              {game.scoreCorrectionReason}
+              {game.scoreCorrectedBy?.name ? ` (${game.scoreCorrectedBy.name})` : ""}
+            </p>
+          )}
+        </div>
       )}
       {isPostponed && (
         <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">

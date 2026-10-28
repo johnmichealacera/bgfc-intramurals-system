@@ -76,6 +76,8 @@ model User {
   scheduleResumeApprovals    EventSchedule[]   @relation("ScheduleResumeApprovedBy")
   scheduleControlRequests    EventSchedule[]   @relation("ScheduleControlRequestedBy")
   scheduleControlApprovals   EventSchedule[]   @relation("ScheduleControlApprovedBy")
+  matchScoreCorrections      Match[]           @relation("MatchScoreCorrectedBy")
+  scheduleScoreCorrections   EventSchedule[]   @relation("ScheduleScoreCorrectedBy")
 
   @@map("users")
 }
@@ -231,6 +233,9 @@ model EventSchedule {
   controlRequestedByUserId String?
   controlApprovedByUserId  String?
   controlRequestReason     String?
+  scoreCorrectedAt         DateTime?
+  scoreCorrectedByUserId   String?
+  scoreCorrectionReason    String?
   updatedByUserId          String?
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
@@ -238,6 +243,7 @@ model EventSchedule {
   sportEvent        SportEvent           @relation(fields: [sportEventId], references: [id], onDelete: Cascade)
   scores            EventScheduleScore[]
   updatedBy         User?                @relation("ScheduleUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  scoreCorrectedBy  User?                @relation("ScheduleScoreCorrectedBy", fields: [scoreCorrectedByUserId], references: [id], onDelete: SetNull)
   resumeRequestedBy User?                @relation("ScheduleResumeRequestedBy", fields: [resumeRequestedByUserId], references: [id], onDelete: SetNull)
   resumeApprovedBy  User?                @relation("ScheduleResumeApprovedBy", fields: [resumeApprovedByUserId], references: [id], onDelete: SetNull)
   controlRequestedBy User?               @relation("ScheduleControlRequestedBy", fields: [controlRequestedByUserId], references: [id], onDelete: SetNull)
@@ -337,6 +343,9 @@ model Match {
   controlRequestedByUserId String?
   controlApprovedByUserId  String?
   controlRequestReason     String?
+  scoreCorrectedAt         DateTime?
+  scoreCorrectedByUserId   String?
+  scoreCorrectionReason    String?
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
 
@@ -345,6 +354,7 @@ model Match {
   awayTeam           Team               @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
   winnerTeam         Team?              @relation("MatchWinnerTeam", fields: [winnerTeamId], references: [id], onDelete: Restrict)
   updatedBy          User?              @relation("MatchUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  scoreCorrectedBy   User?              @relation("MatchScoreCorrectedBy", fields: [scoreCorrectedByUserId], references: [id], onDelete: SetNull)
   resumeRequestedBy  User?              @relation("MatchResumeRequestedBy", fields: [resumeRequestedByUserId], references: [id], onDelete: SetNull)
   resumeApprovedBy   User?              @relation("MatchResumeApprovedBy", fields: [resumeApprovedByUserId], references: [id], onDelete: SetNull)
   controlRequestedBy User?              @relation("MatchControlRequestedBy", fields: [controlRequestedByUserId], references: [id], onDelete: SetNull)
