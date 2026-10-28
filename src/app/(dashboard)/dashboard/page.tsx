@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, Trophy, Radio, Crown, CalendarClock, ArrowRight, Check } from "lucide-react";
+import { Shield, Trophy, Radio, Crown, CalendarClock, ArrowRight, Check, Medal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch } from "@/lib/api-client";
 import { eventCategoryLabel, format } from "@/lib/format";
+import { StandingsBoard } from "@/components/standings-board";
 import type { EventSchedule, Match, Season, SportEvent, StandingRow, Team } from "@/lib/types";
 
 function StatCard({
@@ -211,6 +212,52 @@ export default function DashboardPage() {
             </>
           )}
         </section>
+      )}
+
+      {role === "ADMIN" && (
+        <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="text-base">Overall Standings</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Points from finished games. Gold, silver, and bronze from finalized 1st, 2nd, and 3rd.
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                render={<Link href="/dashboard/medals" />}
+                nativeButton={false}
+              >
+                <Medal className="size-3.5" />
+                Medals
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                render={<Link href="/dashboard/standings" />}
+                nativeButton={false}
+              >
+                Full table
+                <ArrowRight className="size-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loadingStandings ? (
+              <Skeleton className="h-64 rounded-xl" />
+            ) : (
+              <StandingsBoard
+                rows={standings ?? []}
+                embedded
+                emptyHint="Add teams for this season to start the standings."
+              />
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {role === "ADMIN" && pendingControls.length > 0 && (

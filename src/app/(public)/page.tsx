@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import { Trophy, Radio, ListOrdered, CalendarDays, BookOpen, ArrowUpRight } from "lucide-react";
+import { Trophy, Radio, ListOrdered, CalendarDays, BookOpen, ArrowUpRight, Medal } from "lucide-react";
 import { fetcher } from "@/lib/api-client";
 import type { EventSchedule, Match, Season } from "@/lib/types";
 
@@ -38,7 +38,7 @@ export default function PublicHomePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Link
           href="/live"
           className="rounded-xl border border-border/70 bg-card/85 p-5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10"
@@ -57,6 +57,16 @@ export default function PublicHomePage() {
           <p className="mt-3 font-semibold tracking-tight">Overall Standings</p>
           <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
             See the team rankings <ArrowUpRight className="size-3" />
+          </p>
+        </Link>
+        <Link
+          href="/medals"
+          className="rounded-xl border border-border/70 bg-card/85 p-5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10"
+        >
+          <Medal className="size-5 text-amber-600 dark:text-amber-400" />
+          <p className="mt-3 font-semibold tracking-tight">Medal Tally</p>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+            Gold, silver, and bronze <ArrowUpRight className="size-3" />
           </p>
         </Link>
         <Link

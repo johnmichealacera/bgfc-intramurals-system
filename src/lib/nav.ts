@@ -11,6 +11,8 @@ import {
   UserPlus,
   BookOpen,
   Dumbbell,
+  Medal,
+  ChartColumn,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +32,8 @@ export const navConfig: NavItem[] = [
   { href: "/events", label: "Events", icon: Trophy, roles: ["ADMIN"] },
   { href: "/matches", label: "Matches", icon: Swords, roles: ["ADMIN"] },
   { href: "/scoreboard", label: "Scoreboard", icon: Radio, roles: ["ADMIN", "TABULATOR"] },
+  { href: "/dashboard/standings", label: "Standings", icon: ChartColumn, roles: ["ADMIN", "TABULATOR"] },
+  { href: "/dashboard/medals", label: "Medal Tally", icon: Medal, roles: ["ADMIN", "TABULATOR"] },
   { href: "/points-rules", label: "Points Rules", icon: ListOrdered, roles: ["ADMIN"] },
   { href: "/users", label: "Users", icon: Users, roles: ["ADMIN"] },
   { href: "/guidelines", label: "Guidelines", icon: BookOpen, roles: ["ADMIN", "TABULATOR"] },

@@ -19,6 +19,20 @@ export async function GET(req: Request) {
     });
     const pointsByTeam = new Map(totals.map((t) => [t.teamId, t._sum.points ?? 0]));
 
+    const medalTotals = await db.eventPlacement.groupBy({
+      by: ["teamId", "placement"],
+      where: { sportEvent: { seasonId }, placement: { in: [1, 2, 3] } },
+      _count: { _all: true },
+    });
+    const medalsByTeam = new Map<string, { gold: number; silver: number; bronze: number }>();
+    for (const row of medalTotals) {
+      const current = medalsByTeam.get(row.teamId) ?? { gold: 0, silver: 0, bronze: 0 };
+      if (row.placement === 1) current.gold = row._count._all;
+      else if (row.placement === 2) current.silver = row._count._all;
+      else current.bronze = row._count._all;
+      medalsByTeam.set(row.teamId, current);
+    }
+
     const finalizedEvents = await db.eventPlacement.findMany({
       where: { sportEvent: { seasonId } },
       distinct: ["sportEventId"],
@@ -63,7 +77,11 @@ export async function GET(req: Request) {
     }
 
     const standings = teams
-      .map((team) => ({ team, totalPoints: pointsByTeam.get(team.id) ?? 0 }))
+      .map((team) => ({
+        team,
+        totalPoints: pointsByTeam.get(team.id) ?? 0,
+        ...(medalsByTeam.get(team.id) ?? { gold: 0, silver: 0, bronze: 0 }),
+      }))
       .sort((a, b) => b.totalPoints - a.totalPoints || a.team.name.localeCompare(b.team.name));
 
     return NextResponse.json(standings);

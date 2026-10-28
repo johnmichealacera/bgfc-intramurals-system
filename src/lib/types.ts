@@ -197,4 +197,7 @@ export type PlacementPointsRule = {
 export type StandingRow = {
   team: Team;
   totalPoints: number;
+  gold: number;
+  silver: number;
+  bronze: number;
 };
