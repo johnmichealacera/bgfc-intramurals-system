@@ -8,8 +8,10 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api-client";
 import { format } from "@/lib/format";
+import { useSelectedSeason } from "@/hooks/use-selected-season";
 import type { EventSchedule, Match, SportEvent } from "@/lib/types";
 
 const statusStyles: Record<string, string> = {
@@ -26,6 +28,7 @@ type ScoreboardItem =
 export default function ScoreboardListPage() {
   const { data: session, status } = useSession();
   const role = session?.user.role;
+  const { seasons, seasonItems, seasonId, setSeasonId } = useSelectedSeason();
 
   const { data: tabulatorEvents, isLoading: loadingTabulator } = useQuery({
     queryKey: ["tabulator", "my-events"],
@@ -34,28 +37,30 @@ export default function ScoreboardListPage() {
   });
 
   const { data: adminMatches, isLoading: loadingAdminMatches } = useQuery({
-    queryKey: ["matches", "all"],
-    queryFn: () => apiFetch<Match[]>("/api/matches"),
-    enabled: role === "ADMIN",
+    queryKey: ["matches", "season", seasonId],
+    queryFn: () => apiFetch<Match[]>(`/api/matches?seasonId=${seasonId}`),
+    enabled: role === "ADMIN" && !!seasonId,
   });
 
   const { data: adminSessions, isLoading: loadingAdminSessions } = useQuery({
-    queryKey: ["schedules", "all"],
-    queryFn: () => apiFetch<EventSchedule[]>("/api/schedules"),
-    enabled: role === "ADMIN",
+    queryKey: ["schedules", "season", seasonId],
+    queryFn: () => apiFetch<EventSchedule[]>(`/api/schedules?seasonId=${seasonId}`),
+    enabled: role === "ADMIN" && !!seasonId,
   });
 
   const isLoading =
     status === "loading" ||
     !role ||
+    !seasonId ||
     (role === "TABULATOR" ? loadingTabulator : loadingAdminMatches || loadingAdminSessions);
+  const seasonEvents = (tabulatorEvents ?? []).filter((event) => !seasonId || event.seasonId === seasonId);
   const matches =
     role === "TABULATOR"
-      ? (tabulatorEvents ?? []).flatMap((e) => e.matches.map((m) => ({ ...m, sportEvent: e })))
+      ? seasonEvents.flatMap((e) => e.matches.map((m) => ({ ...m, sportEvent: e })))
       : (adminMatches ?? []);
   const sessions =
     role === "TABULATOR"
-      ? (tabulatorEvents ?? []).flatMap((e) => (e.schedules ?? []).map((s) => ({ ...s, sportEvent: e })))
+      ? seasonEvents.flatMap((e) => (e.schedules ?? []).map((s) => ({ ...s, sportEvent: e })))
       : (adminSessions ?? []);
 
   const items: ScoreboardItem[] = [
@@ -86,6 +91,20 @@ export default function ScoreboardListPage() {
       <PageHeader
         title="Scoreboard"
         description="Score live group matches and solo sessions. Tabulators request admin approval before going live. Postponed and finished games stay visible but locked."
+        actions={
+          <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select season" />
+            </SelectTrigger>
+            <SelectContent>
+              {seasons.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {isLoading ? (

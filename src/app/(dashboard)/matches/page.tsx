@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Radio, Swords, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Radio, Swords, Lock } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import { format } from "@/lib/format";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
 import type { Match, SportEvent, Team } from "@/lib/types";
 
+const PAGE_SIZE = 10;
+
 const matchStatusStyles: Record<string, string> = {
   SCHEDULED: "bg-muted text-muted-foreground",
   LIVE: "bg-destructive/10 text-destructive",
@@ -25,8 +28,10 @@ const matchStatusStyles: Record<string, string> = {
 
 export default function MatchesPage() {
   const { seasons, seasonItems, seasonId, setSeasonId } = useSelectedSeason();
+  const [sportId, setSportId] = useState("ALL");
+  const [page, setPage] = useState(1);
 
-  const { data: events } = useQuery({
+  const { data: events, isLoading: loadingEvents } = useQuery({
     queryKey: ["events", seasonId],
     queryFn: () => apiFetch<SportEvent[]>(`/api/events?seasonId=${seasonId}`),
     enabled: !!seasonId,
@@ -39,16 +44,40 @@ export default function MatchesPage() {
     enabled: !!seasonId,
   });
 
-  const { data: matches, isLoading } = useQuery({
-    queryKey: ["matches", "season", seasonId, teamEvents.map((e) => e.id).join(",")],
-    queryFn: async () => {
-      const results = await Promise.all(
-        teamEvents.map((e) => apiFetch<Match[]>(`/api/matches?eventId=${e.id}`)),
-      );
-      return results.flat().sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-    },
-    enabled: teamEvents.length > 0,
+  const { data: matches, isLoading: loadingMatches } = useQuery({
+    queryKey: ["matches", "season", seasonId],
+    queryFn: () => apiFetch<Match[]>(`/api/matches?seasonId=${seasonId}`),
+    enabled: !!seasonId,
   });
+
+  const sportItems = useMemo(
+    () => ({ ALL: "All sports", ...Object.fromEntries(teamEvents.map((e) => [e.id, e.name])) }),
+    [teamEvents],
+  );
+
+  const filteredMatches = useMemo(() => {
+    const list = matches ?? [];
+    return sportId === "ALL" ? list : list.filter((m) => m.sportEventId === sportId);
+  }, [matches, sportId]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredMatches.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pagedMatches = filteredMatches.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const rangeStart = filteredMatches.length ? (safePage - 1) * PAGE_SIZE + 1 : 0;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, filteredMatches.length);
+
+  const isLoading = !seasonId || loadingEvents || loadingMatches;
+
+  function changeSeason(value: string | null) {
+    setSeasonId(value ?? undefined);
+    setSportId("ALL");
+    setPage(1);
+  }
+
+  function changeSport(value: string | null) {
+    setSportId(value ?? "ALL");
+    setPage(1);
+  }
 
   return (
     <div className="space-y-6">
@@ -56,8 +85,8 @@ export default function MatchesPage() {
         title="Matches"
         description="All scheduled matches across group events for the selected season."
         actions={
-          <div className="flex items-center gap-2">
-            <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={seasonId ?? ""} onValueChange={changeSeason} items={seasonItems}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select season" />
               </SelectTrigger>
@@ -69,6 +98,19 @@ export default function MatchesPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={sportId} onValueChange={changeSport} items={sportItems}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All sports" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All sports</SelectItem>
+                {teamEvents.map((event) => (
+                  <SelectItem key={event.id} value={event.id}>
+                    {event.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <ScheduleMatchDialog events={teamEvents} teams={teams ?? []} />
           </div>
         }
@@ -76,7 +118,7 @@ export default function MatchesPage() {
 
       {isLoading ? (
         <Skeleton className="h-64 rounded-2xl" />
-      ) : !matches?.length ? (
+      ) : !filteredMatches.length ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-12 text-center">
           <Swords className="mb-3 size-8 text-muted-foreground" />
           <p className="text-sm font-medium">No matches scheduled</p>
@@ -99,7 +141,7 @@ export default function MatchesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {matches.map((m) => (
+                {pagedMatches.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell className="text-muted-foreground">{m.sportEvent?.name}</TableCell>
                     <TableCell className="font-medium">
@@ -138,6 +180,36 @@ export default function MatchesPage() {
                 ))}
               </TableBody>
             </Table>
+            <div className="flex flex-col gap-3 border-t border-border/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {rangeStart}–{rangeEnd} of {filteredMatches.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage(safePage - 1)}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Button>
+                <span className="text-sm tabular-nums text-muted-foreground">
+                  {safePage} / {pageCount}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  disabled={safePage >= pageCount}
+                  onClick={() => setPage(safePage + 1)}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

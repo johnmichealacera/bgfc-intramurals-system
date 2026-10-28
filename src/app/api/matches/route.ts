@@ -25,13 +25,21 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const eventId = url.searchParams.get("eventId");
+    const seasonId = url.searchParams.get("seasonId");
     const role = session!.user.role;
     const userId = session!.user.id;
 
     const matches = await db.match.findMany({
       where: {
         ...(eventId ? { sportEventId: eventId } : {}),
-        ...(role === "TABULATOR" ? { sportEvent: { tabulators: { some: { userId } } } } : {}),
+        ...((seasonId || role === "TABULATOR")
+          ? {
+              sportEvent: {
+                ...(seasonId ? { seasonId } : {}),
+                ...(role === "TABULATOR" ? { tabulators: { some: { userId } } } : {}),
+              },
+            }
+          : {}),
       },
       include: {
         homeTeam: true,
