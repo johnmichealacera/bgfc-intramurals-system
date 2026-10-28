@@ -22,7 +22,7 @@ export default function DashboardStandingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Overall Standings"
-        description="Finished games add points. Gold, silver, and bronze count 1st, 2nd, and 3rd from finalized events."
+        description="Finished games add points. Gold, silver, and bronze go to 1st, 2nd, and 3rd on overall points."
         actions={
           seasons.length > 0 ? (
             <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>

@@ -28,7 +28,7 @@ export default function MedalsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Medal Tally</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Gold for champion, silver for 2nd, bronze for 3rd — counted when an event is finalized.{" "}
+            Gold for champion, silver for 2nd, bronze for 3rd — same order as overall points.{" "}
             <Link href="/standings" className="font-medium text-primary underline-offset-4 hover:underline">
               View standings
             </Link>
@@ -57,8 +57,7 @@ export default function MedalsPage() {
           <MedalPodium rows={standings ?? []} />
           <StandingsBoard
             rows={standings ?? []}
-            sort="medals"
-            emptyHint="Finalize event results to award gold, silver, and bronze."
+            emptyHint="Points decide 1st, 2nd, and 3rd — and their medals."
           />
         </>
       )}

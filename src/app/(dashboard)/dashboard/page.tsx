@@ -220,7 +220,7 @@ export default function DashboardPage() {
             <div>
               <CardTitle className="text-base">Overall Standings</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Points from finished games. Gold, silver, and bronze from finalized 1st, 2nd, and 3rd.
+                Points from finished games. Gold, silver, and bronze go to 1st, 2nd, and 3rd on overall points.
               </p>
             </div>
             <div className="flex shrink-0 gap-2">

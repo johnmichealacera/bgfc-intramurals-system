@@ -29,7 +29,7 @@ export default function StandingsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Overall Standings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Teams start at 0. A finished game gives 2 points to the winner (1 each if tied). Gold, silver, and bronze
-            count 1st, 2nd, and 3rd from finalized events.{" "}
+            go to 1st, 2nd, and 3rd on overall points.{" "}
             <Link href="/medals" className="font-medium text-primary underline-offset-4 hover:underline">
               View medal tally
             </Link>

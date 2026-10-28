@@ -22,7 +22,7 @@ export default function DashboardMedalsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Medal Tally"
-        description="Gold for champion, silver for 2nd, bronze for 3rd — counted when an event is finalized."
+        description="Gold for champion, silver for 2nd, bronze for 3rd — same order as overall points."
         actions={
           seasons.length > 0 ? (
             <Select value={seasonId ?? ""} onValueChange={(value) => setSeasonId(value ?? undefined)} items={seasonItems}>
@@ -52,8 +52,7 @@ export default function DashboardMedalsPage() {
           <MedalPodium rows={standings ?? []} />
           <StandingsBoard
             rows={standings ?? []}
-            sort="medals"
-            emptyHint="Finalize event results to award gold, silver, and bronze."
+            emptyHint="Points decide 1st, 2nd, and 3rd — and their medals."
           />
         </>
       )}
