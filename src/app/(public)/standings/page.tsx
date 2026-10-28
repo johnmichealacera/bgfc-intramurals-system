@@ -37,7 +37,7 @@ export default function StandingsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Overall Standings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Total points from finalized events this season. Finish every game in an event, then use Finalize Results.
+            Teams start at 0. Points update after an event is finalized.
           </p>
         </div>
         {seasons && seasons.length > 0 && (
@@ -61,10 +61,8 @@ export default function StandingsPage() {
       ) : !standings?.length ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-16 text-center">
           <ListOrdered className="mb-3 size-8 text-muted-foreground" />
-          <p className="text-sm font-medium">No results yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Points show here after an event is finalized. Live match scores do not add to this table.
-          </p>
+          <p className="text-sm font-medium">No teams yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">Add teams for this season to start the standings.</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
