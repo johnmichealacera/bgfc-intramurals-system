@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { Prisma } from "@/generated/prisma/client";
+import { TabulatorConflictError } from "@/lib/tabulator";
 
 export function apiError(error: unknown) {
   if (error instanceof ZodError) {
     return NextResponse.json({ error: "Invalid input", issues: error.flatten() }, { status: 400 });
+  }
+
+  if (error instanceof TabulatorConflictError) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
   }
 
   if (error instanceof Error && error.message === "Forbidden") {

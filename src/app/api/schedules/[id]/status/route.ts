@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions, assertEventAccess, assertRole } from "@/lib/auth";
+import { authOptions, assertRole } from "@/lib/auth";
+import { assertScheduleAccess } from "@/lib/tabulator";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
 import { clearControl, clearResume, ensureScheduleScores, scheduleInclude } from "@/lib/session-scoreboard";
@@ -28,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { action, reason = "" } = actionSchema.parse(await req.json());
 
     const schedule = await db.eventSchedule.findUniqueOrThrow({ where: { id } });
-    await assertEventAccess(session, schedule.sportEventId);
+    await assertScheduleAccess(session, schedule.id);
     const userId = session!.user.id;
     const role = session!.user.role;
 

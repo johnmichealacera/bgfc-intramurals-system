@@ -65,7 +65,8 @@ model User {
 
   accounts         Account[]
   sessions         Session[]
-  eventAssignments           EventTabulator[]
+  assignedMatches            Match[]           @relation("MatchTabulator")
+  assignedSchedules          EventSchedule[]   @relation("ScheduleTabulator")
   scoredMatches              Match[]           @relation("MatchUpdatedBy")
   resumeRequests             Match[]           @relation("MatchResumeRequestedBy")
   resumeApprovals            Match[]           @relation("MatchResumeApprovedBy")
@@ -204,7 +205,6 @@ model SportEvent {
   updatedAt   DateTime            @updatedAt
 
   season     Season           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
-  tabulators EventTabulator[]
   eventTeams    EventTeam[]
   schedules     EventSchedule[]
   matches       Match[]
@@ -236,12 +236,14 @@ model EventSchedule {
   scoreCorrectedAt         DateTime?
   scoreCorrectedByUserId   String?
   scoreCorrectionReason    String?
+  tabulatorUserId          String?
   updatedByUserId          String?
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
 
   sportEvent        SportEvent           @relation(fields: [sportEventId], references: [id], onDelete: Cascade)
   scores            EventScheduleScore[]
+  tabulator         User?                @relation("ScheduleTabulator", fields: [tabulatorUserId], references: [id], onDelete: SetNull)
   updatedBy         User?                @relation("ScheduleUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   scoreCorrectedBy  User?                @relation("ScheduleScoreCorrectedBy", fields: [scoreCorrectedByUserId], references: [id], onDelete: SetNull)
   resumeRequestedBy User?                @relation("ScheduleResumeRequestedBy", fields: [resumeRequestedByUserId], references: [id], onDelete: SetNull)
@@ -252,6 +254,7 @@ model EventSchedule {
   @@index([sportEventId])
   @@index([scheduledAt])
   @@index([status])
+  @@index([tabulatorUserId])
   @@map("event_schedules")
 }
 
@@ -305,20 +308,6 @@ model EventParticipant {
   @@map("event_participants")
 }
 
-model EventTabulator {
-  id           String   @id @default(cuid())
-  sportEventId String
-  userId       String
-  createdAt    DateTime @default(now())
-
-  sportEvent SportEvent @relation(fields: [sportEventId], references: [id], onDelete: Cascade)
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([sportEventId, userId])
-  @@index([userId])
-  @@map("event_tabulators")
-}
-
 model Match {
   id                      String      @id @default(cuid())
   sportEventId            String
@@ -346,6 +335,7 @@ model Match {
   scoreCorrectedAt         DateTime?
   scoreCorrectedByUserId   String?
   scoreCorrectionReason    String?
+  tabulatorUserId          String?
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
 
@@ -353,6 +343,7 @@ model Match {
   homeTeam           Team               @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
   awayTeam           Team               @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
   winnerTeam         Team?              @relation("MatchWinnerTeam", fields: [winnerTeamId], references: [id], onDelete: Restrict)
+  tabulator          User?              @relation("MatchTabulator", fields: [tabulatorUserId], references: [id], onDelete: SetNull)
   updatedBy          User?              @relation("MatchUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   scoreCorrectedBy   User?              @relation("MatchScoreCorrectedBy", fields: [scoreCorrectedByUserId], references: [id], onDelete: SetNull)
   resumeRequestedBy  User?              @relation("MatchResumeRequestedBy", fields: [resumeRequestedByUserId], references: [id], onDelete: SetNull)
@@ -365,6 +356,7 @@ model Match {
   @@index([sportEventId, phase])
   @@index([status])
   @@index([scheduledAt])
+  @@index([tabulatorUserId])
   @@map("matches")
 }
 

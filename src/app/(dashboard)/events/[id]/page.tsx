@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Radio, UserPlus, X, Trophy, BookOpen, ShieldPlus, Users, CalendarDays, Search, Lock, GitBranch, Shuffle } from "lucide-react";
+import { Radio, Trophy, BookOpen, ShieldPlus, Users, CalendarDays, Search, Lock, GitBranch, Shuffle, UserPlus, X } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ScheduleMatchDialog } from "@/components/dashboard/schedule-match-dialog";
 import { ScheduleSessionDialog } from "@/components/dashboard/schedule-session-dialog";
@@ -20,6 +20,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { format, eventCategoryLabel, eventTypeLabel, sessionVsLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import { getEnrollmentBlockReason, MAX_EVENT_ENTRIES } from "@/lib/enrollment-rules";
+import { GameTabulatorSelect } from "@/components/dashboard/game-tabulator-select";
 import { EventBracket } from "@/components/event-bracket";
 import { roundRobinStandings } from "@/lib/bracket";
 import type { AppUser, Participant, SportEventDetail, Team } from "@/lib/types";
@@ -69,23 +70,26 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to update status"),
   });
 
-  const assignMutation = useMutation({
-    mutationFn: (userId: string) =>
-      apiFetch(`/api/events/${id}/tabulators`, { method: "POST", body: JSON.stringify({ userId }) }),
+  const assignMatchMutation = useMutation({
+    mutationFn: ({ matchId, userId }: { matchId: string; userId: string | null }) =>
+      apiFetch(`/api/matches/${matchId}/tabulator`, { method: "PATCH", body: JSON.stringify({ userId }) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["event", id] });
-      toast.success("Tabulator assigned");
+      queryClient.invalidateQueries({ queryKey: ["tabulator", "my-events"] });
+      toast.success("Tabulator updated");
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to assign tabulator"),
   });
 
-  const unassignMutation = useMutation({
-    mutationFn: (userId: string) => apiFetch(`/api/events/${id}/tabulators/${userId}`, { method: "DELETE" }),
+  const assignSessionMutation = useMutation({
+    mutationFn: ({ scheduleId, userId }: { scheduleId: string; userId: string | null }) =>
+      apiFetch(`/api/schedules/${scheduleId}/tabulator`, { method: "PATCH", body: JSON.stringify({ userId }) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["event", id] });
-      toast.success("Tabulator unassigned");
+      queryClient.invalidateQueries({ queryKey: ["tabulator", "my-events"] });
+      toast.success("Tabulator updated");
     },
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to unassign tabulator"),
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to assign tabulator"),
   });
 
   const enrollMutation = useMutation({
@@ -197,9 +201,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const unresolvedMatches = event.matches.filter((m) => m.status !== "FINISHED").length;
   const canFinalize = event.type === "PLACEMENT" || unresolvedMatches === 0;
-  const tabulators = event.tabulators ?? [];
-  const assignedUserIds = new Set(tabulators.map((t) => t.userId));
-  const availableTabulators = (users ?? []).filter((u) => u.role === "TABULATOR" && !assignedUserIds.has(u.id));
   const guideline = findGuidelineForEventName(event.name);
   const enrolledTeamIds = new Set(event.eventTeams.map((et) => et.teamId));
   const availableTeams = (teams ?? []).filter((t) => !enrolledTeamIds.has(t.id));
@@ -249,50 +250,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           View official {guideline.name} guidelines
         </Link>
       )}
-
-      <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
-        <CardHeader>
-          <CardTitle className="text-base">Assigned Tabulators</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {tabulators.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tabulators assigned. The admin can still score matches.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {tabulators.map((t) => (
-                <Badge key={t.id} variant="secondary" className="gap-2 py-1.5 pl-3">
-                  {t.user.name}
-                  <button
-                    onClick={() => unassignMutation.mutate(t.userId)}
-                    className="rounded-full p-0.5 hover:bg-background/60"
-                    aria-label={`Unassign ${t.user.name}`}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {availableTabulators.length > 0 && (
-            <Select
-              onValueChange={(value) => typeof value === "string" && assignMutation.mutate(value)}
-              items={Object.fromEntries(availableTabulators.map((u) => [u.id, `${u.name} (${u.email})`]))}
-            >
-              <SelectTrigger className="w-64">
-                <UserPlus className="size-4 text-muted-foreground" />
-                <SelectValue placeholder="Assign a tabulator" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableTabulators.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name} ({u.email})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </CardContent>
-      </Card>
 
       <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
@@ -520,6 +477,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     <TableHead>Matchup</TableHead>
                     <TableHead>When</TableHead>
                     <TableHead>Venue</TableHead>
+                    <TableHead>Tabulator</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead />
                   </TableRow>
@@ -535,6 +493,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       </TableCell>
                       <TableCell className="text-muted-foreground">{format.dateTime(s.scheduledAt)}</TableCell>
                       <TableCell className="text-muted-foreground">{s.venue || "—"}</TableCell>
+                      <TableCell>
+                        <GameTabulatorSelect
+                          assigned={s.tabulator}
+                          users={users ?? []}
+                          pending={assignSessionMutation.isPending}
+                          onAssign={(userId) => assignSessionMutation.mutate({ scheduleId: s.id, userId })}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Badge className={matchStatusStyles[s.status] ?? matchStatusStyles.SCHEDULED}>{s.status}</Badge>
                       </TableCell>
@@ -635,6 +601,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       <TableHead>Matchup</TableHead>
                       <TableHead>Score</TableHead>
                       <TableHead>When</TableHead>
+                      <TableHead>Tabulator</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead />
                     </TableRow>
@@ -659,6 +626,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                           {m.homeScore} – {m.awayScore}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{format.dateTime(m.scheduledAt)}</TableCell>
+                        <TableCell>
+                          <GameTabulatorSelect
+                            assigned={m.tabulator}
+                            users={users ?? []}
+                            pending={assignMatchMutation.isPending}
+                            onAssign={(userId) => assignMatchMutation.mutate({ matchId: m.id, userId })}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Badge className={matchStatusStyles[m.status]}>{m.status}</Badge>
                         </TableCell>

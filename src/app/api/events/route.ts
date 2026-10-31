@@ -25,10 +25,17 @@ export async function GET(req: Request) {
     const events = await db.sportEvent.findMany({
       where: {
         ...(seasonId ? { seasonId } : {}),
-        ...(role === "TABULATOR" ? { tabulators: { some: { userId } } } : {}),
+        ...(role === "TABULATOR"
+          ? {
+              OR: [
+                { matches: { some: { tabulatorUserId: userId } } },
+                { schedules: { some: { tabulatorUserId: userId } } },
+              ],
+            }
+          : {}),
       },
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { matches: true, placements: true, tabulators: true } } },
+      include: { _count: { select: { matches: true, placements: true } } },
     });
     return NextResponse.json(events);
   } catch (error) {

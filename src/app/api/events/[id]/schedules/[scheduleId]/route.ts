@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions, assertRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
+import { assertNoTabulatorConflict } from "@/lib/tabulator";
 
 const updateSchema = z.object({
   title: z.string().nullable().optional(),
@@ -30,6 +31,15 @@ export async function PATCH(
     }
     if (existing.status !== "SCHEDULED") {
       return NextResponse.json({ error: "Only scheduled sessions can be edited." }, { status: 409 });
+    }
+
+    if (body.scheduledAt && existing.tabulatorUserId) {
+      await assertNoTabulatorConflict({
+        userId: existing.tabulatorUserId,
+        scheduledAt: new Date(body.scheduledAt),
+        status: existing.status,
+        excludeScheduleId: scheduleId,
+      });
     }
 
     const schedule = await db.eventSchedule.update({

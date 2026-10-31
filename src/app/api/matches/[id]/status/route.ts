@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions, assertEventAccess, assertRole } from "@/lib/auth";
+import { authOptions, assertRole } from "@/lib/auth";
+import { assertMatchAccess } from "@/lib/tabulator";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
 import { advanceBracketWinner } from "@/lib/bracket";
@@ -55,7 +56,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { action, reason = "" } = actionSchema.parse(await req.json());
 
     const match = await db.match.findUniqueOrThrow({ where: { id } });
-    await assertEventAccess(session, match.sportEventId);
+    await assertMatchAccess(session, match.id);
     const userId = session!.user.id;
     const role = session!.user.role;
 

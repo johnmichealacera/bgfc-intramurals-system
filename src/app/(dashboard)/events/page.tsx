@@ -339,8 +339,6 @@ export default function EventsPage() {
                               {event.type === "TEAM_VS_TEAM"
                                 ? `${event._count.matches} match${event._count.matches === 1 ? "" : "es"}`
                                 : `${event._count.placements} result${event._count.placements === 1 ? "" : "s"}`}
-                              {" · "}
-                              {event._count.tabulators} tabulator{event._count.tabulators === 1 ? "" : "s"}
                             </p>
                           )}
                         </CardContent>

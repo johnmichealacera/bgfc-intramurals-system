@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions, assertRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
+import { assertNoTabulatorConflict } from "@/lib/tabulator";
 
 const updateSchema = z.object({
   scheduledAt: z.coerce.date().optional(),
@@ -28,6 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         controlRequestedBy: { select: { id: true, name: true } },
         controlApprovedBy: { select: { id: true, name: true } },
         scoreCorrectedBy: { select: { id: true, name: true } },
+        tabulator: { select: { id: true, name: true, email: true } },
       },
     });
     return NextResponse.json(match);
@@ -47,6 +49,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const current = await db.match.findUniqueOrThrow({ where: { id } });
     if (current.status !== "SCHEDULED") {
       return NextResponse.json({ error: "Only scheduled matches can be edited." }, { status: 409 });
+    }
+
+    if (body.scheduledAt && current.tabulatorUserId) {
+      await assertNoTabulatorConflict({
+        userId: current.tabulatorUserId,
+        scheduledAt: body.scheduledAt,
+        status: current.status,
+        excludeMatchId: id,
+      });
     }
 
     const match = await db.match.update({ where: { id }, data: body });

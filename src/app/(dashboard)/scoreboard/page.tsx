@@ -119,7 +119,7 @@ export default function ScoreboardListPage() {
           <p className="text-sm font-medium">No games yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {role === "TABULATOR"
-              ? "You have no assigned events with matches or solo sessions."
+              ? "You have no games assigned yet."
               : "Schedule a group match or solo session to get started."}
           </p>
         </div>

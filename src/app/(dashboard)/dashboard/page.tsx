@@ -170,7 +170,7 @@ export default function DashboardPage() {
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
             {role === "ADMIN"
               ? "Here's a live overview of this season's intramurals."
-              : "Here are the events and matches assigned to you."}
+              : "Here are the games assigned to you."}
           </p>
         </div>
       </section>
@@ -333,8 +333,13 @@ export default function DashboardPage() {
             ) : (
               <>
                 <StatCard
-                  label="My Assigned Events"
-                  value={String(myEvents?.length ?? 0)}
+                  label="My Assigned Games"
+                  value={String(
+                    (myEvents ?? []).reduce(
+                      (total, event) => total + event.matches.length + (event.schedules?.length ?? 0),
+                      0,
+                    ),
+                  )}
                   icon={<Trophy className="size-5 text-primary" />}
                   accent="from-primary/15 to-primary/0 text-primary"
                 />
@@ -352,13 +357,13 @@ export default function DashboardPage() {
           <Card className="border-border/70 bg-card/85 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:ring-white/10">
             <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
               <div>
-                <CardTitle className="text-base">Assigned Events</CardTitle>
+                <CardTitle className="text-base">Assigned Games</CardTitle>
                 <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                  Request admin approval from the{" "}
+                  You only score games assigned to you. Request admin approval from the{" "}
                   <Link href="/scoreboard" className="font-medium text-primary underline-offset-4 hover:underline">
                     Scoreboard
                   </Link>{" "}
-                  before controlling a live group match or solo session.
+                  before going live.
                 </p>
               </div>
               <Button
@@ -382,9 +387,9 @@ export default function DashboardPage() {
               ) : !myEvents?.length ? (
                 <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-10 text-center">
                   <Trophy className="mx-auto mb-2 size-7 text-muted-foreground" />
-                  <p className="text-sm font-medium">No events assigned yet</p>
+                  <p className="text-sm font-medium">No games assigned yet</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    An admin will assign you to events when you need to score matches.
+                    An admin will assign you to a specific match or solo session.
                   </p>
                 </div>
               ) : (

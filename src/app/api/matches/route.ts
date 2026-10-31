@@ -32,14 +32,8 @@ export async function GET(req: Request) {
     const matches = await db.match.findMany({
       where: {
         ...(eventId ? { sportEventId: eventId } : {}),
-        ...((seasonId || role === "TABULATOR")
-          ? {
-              sportEvent: {
-                ...(seasonId ? { seasonId } : {}),
-                ...(role === "TABULATOR" ? { tabulators: { some: { userId } } } : {}),
-              },
-            }
-          : {}),
+        ...(seasonId ? { sportEvent: { seasonId } } : {}),
+        ...(role === "TABULATOR" ? { tabulatorUserId: userId } : {}),
       },
       include: {
         homeTeam: true,
@@ -50,6 +44,7 @@ export async function GET(req: Request) {
         resumeApprovedBy: { select: { id: true, name: true } },
         controlRequestedBy: { select: { id: true, name: true } },
         controlApprovedBy: { select: { id: true, name: true } },
+        tabulator: { select: { id: true, name: true, email: true } },
       },
       orderBy: { scheduledAt: "asc" },
     });

@@ -53,16 +53,3 @@ export function assertRole(session: Session | null, roles: AppRole[]) {
   const role = (session?.user as { role?: AppRole } | undefined)?.role;
   if (!role || !roles.includes(role)) throw new Error("Forbidden");
 }
-
-export async function assertEventAccess(session: Session | null, sportEventId: string) {
-  const role = (session?.user as { role?: AppRole } | undefined)?.role;
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!role || !userId) throw new Error("Forbidden");
-  if (role === "ADMIN") return;
-  if (role !== "TABULATOR") throw new Error("Forbidden");
-
-  const assignment = await db.eventTabulator.findUnique({
-    where: { sportEventId_userId: { sportEventId, userId } },
-  });
-  if (!assignment) throw new Error("Forbidden");
-}

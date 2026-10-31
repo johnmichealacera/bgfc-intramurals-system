@@ -29,6 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             resumeApprovedBy: { select: { id: true, name: true } },
             controlRequestedBy: { select: { id: true, name: true } },
             controlApprovedBy: { select: { id: true, name: true } },
+            tabulator: { select: { id: true, name: true, email: true } },
           },
           orderBy: { scheduledAt: "asc" },
         },
@@ -48,6 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             resumeApprovedBy: { select: { id: true, name: true } },
             controlRequestedBy: { select: { id: true, name: true } },
             controlApprovedBy: { select: { id: true, name: true } },
+            tabulator: { select: { id: true, name: true, email: true } },
           },
           orderBy: { scheduledAt: "asc" },
         },
@@ -62,7 +64,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           },
           orderBy: { team: { name: "asc" } },
         },
-        tabulators: { include: { user: { select: { id: true, name: true, email: true } } } },
         season: true,
       },
     });

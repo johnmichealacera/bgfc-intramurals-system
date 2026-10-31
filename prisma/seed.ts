@@ -36,7 +36,6 @@ async function clearSeasonData(seasonId: string) {
   await db.eventBracketGame.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.eventPlacement.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.match.deleteMany({ where: { sportEvent: { seasonId } } });
-  await db.eventTabulator.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.eventParticipant.deleteMany({ where: { eventTeam: { sportEvent: { seasonId } } } });
   await db.eventTeam.deleteMany({ where: { sportEvent: { seasonId } } });
   await db.eventSchedule.deleteMany({ where: { sportEvent: { seasonId } } });
@@ -277,18 +276,6 @@ async function main() {
     },
   });
 
-  for (const eventId of [basketball.id, volleyball.id, tableTennis.id]) {
-    await db.eventTabulator.create({
-      data: { sportEventId: eventId, userId: tabulator.id },
-    });
-  }
-  await db.eventTabulator.create({
-    data: { sportEventId: dancesport.id, userId: tabulator2.id },
-  });
-  await db.eventTabulator.create({
-    data: { sportEventId: chess.id, userId: tabulator2.id },
-  });
-
   const allTeamIds = teams.map((t) => t.id);
   await enrollTeams(basketball.id, allTeamIds, "MALE", 3);
   await enrollTeams(volleyball.id, allTeamIds, "FEMALE", 3);
@@ -522,6 +509,59 @@ async function main() {
   await seedBracket(basketball.id);
   await seedBracket(volleyball.id, true);
   await seedBracket(tableTennis.id);
+
+  async function assignMatchIfFree(userId: string, matchId: string) {
+    const match = await db.match.findUniqueOrThrow({ where: { id: matchId } });
+    if (match.status === "SCHEDULED" || match.status === "LIVE") {
+      const taken =
+        (await db.match.count({
+          where: {
+            tabulatorUserId: userId,
+            scheduledAt: match.scheduledAt,
+            status: { in: ["SCHEDULED", "LIVE"] },
+            id: { not: matchId },
+          },
+        })) +
+        (await db.eventSchedule.count({
+          where: { tabulatorUserId: userId, scheduledAt: match.scheduledAt, status: { in: ["SCHEDULED", "LIVE"] } },
+        }));
+      if (taken > 0) return;
+    }
+    await db.match.update({ where: { id: matchId }, data: { tabulatorUserId: userId } });
+  }
+
+  async function assignScheduleIfFree(userId: string, scheduleId: string) {
+    const session = await db.eventSchedule.findUniqueOrThrow({ where: { id: scheduleId } });
+    if (session.status === "SCHEDULED" || session.status === "LIVE") {
+      const taken =
+        (await db.match.count({
+          where: { tabulatorUserId: userId, scheduledAt: session.scheduledAt, status: { in: ["SCHEDULED", "LIVE"] } },
+        })) +
+        (await db.eventSchedule.count({
+          where: {
+            tabulatorUserId: userId,
+            scheduledAt: session.scheduledAt,
+            status: { in: ["SCHEDULED", "LIVE"] },
+            id: { not: scheduleId },
+          },
+        }));
+      if (taken > 0) return;
+    }
+    await db.eventSchedule.update({ where: { id: scheduleId }, data: { tabulatorUserId: userId } });
+  }
+
+  for (const row of await db.match.findMany({
+    where: { sportEventId: { in: [basketball.id, volleyball.id, tableTennis.id] } },
+    select: { id: true },
+  })) {
+    await assignMatchIfFree(tabulator.id, row.id);
+  }
+  for (const row of await db.eventSchedule.findMany({
+    where: { sportEventId: { in: [dancesport.id, chess.id] } },
+    select: { id: true },
+  })) {
+    await assignScheduleIfFree(tabulator2.id, row.id);
+  }
 
   const [teamCount, matchCount, liveCount, placementCount, eventCount, eventTeamCount, eventRosterCount, scheduleCount, bracketCount] =
     await Promise.all([

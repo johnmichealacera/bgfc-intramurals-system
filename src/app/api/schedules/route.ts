@@ -19,14 +19,8 @@ export async function GET(req: Request) {
     const schedules = await db.eventSchedule.findMany({
       where: {
         ...(eventId ? { sportEventId: eventId } : {}),
-        ...((seasonId || role === "TABULATOR")
-          ? {
-              sportEvent: {
-                ...(seasonId ? { seasonId } : {}),
-                ...(role === "TABULATOR" ? { tabulators: { some: { userId } } } : {}),
-              },
-            }
-          : {}),
+        ...(seasonId ? { sportEvent: { seasonId } } : {}),
+        ...(role === "TABULATOR" ? { tabulatorUserId: userId } : {}),
       },
       include: scheduleInclude,
       orderBy: { scheduledAt: "asc" },

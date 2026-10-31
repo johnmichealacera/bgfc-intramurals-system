@@ -107,6 +107,8 @@ export type EventSchedule = {
   scoreCorrectedAt: string | null;
   scoreCorrectionReason: string | null;
   scoreCorrectedBy?: { id: string; name: string } | null;
+  tabulatorUserId?: string | null;
+  tabulator?: { id: string; name: string; email: string } | null;
   scores?: EventScheduleScore[];
   sportEvent?: SportEvent;
 };
@@ -121,7 +123,7 @@ export type SportEvent = {
   description: string | null;
   schedules?: EventSchedule[];
   matches?: Match[];
-  _count?: { matches: number; placements: number; tabulators: number };
+  _count?: { matches: number; placements: number };
 };
 
 export type EventBracketGame = {
@@ -148,7 +150,6 @@ export type SportEventDetail = SportEvent & {
   placements: EventPlacement[];
   eventTeams: EventTeamEntry[];
   bracketGames?: EventBracketGame[];
-  tabulators?: { id: string; userId: string; user: { id: string; name: string; email: string } }[];
 };
 
 export type Match = {
@@ -177,6 +178,8 @@ export type Match = {
   scoreCorrectedAt: string | null;
   scoreCorrectionReason: string | null;
   scoreCorrectedBy?: { id: string; name: string } | null;
+  tabulatorUserId?: string | null;
+  tabulator?: { id: string; name: string; email: string } | null;
   homeTeam: Team;
   awayTeam: Team;
   winnerTeam: Team | null;

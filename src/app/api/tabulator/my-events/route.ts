@@ -9,13 +9,18 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     assertRole(session, ["TABULATOR"]);
 
+    const userId = session!.user.id;
     const events = await db.sportEvent.findMany({
-      where: { tabulators: { some: { userId: session!.user.id } } },
+      where: {
+        OR: [{ matches: { some: { tabulatorUserId: userId } } }, { schedules: { some: { tabulatorUserId: userId } } }],
+      },
       include: {
         matches: {
+          where: { tabulatorUserId: userId },
           include: {
             homeTeam: true,
             awayTeam: true,
+            tabulator: { select: { id: true, name: true, email: true } },
             resumeRequestedBy: { select: { id: true, name: true } },
             resumeApprovedBy: { select: { id: true, name: true } },
             controlRequestedBy: { select: { id: true, name: true } },
@@ -24,8 +29,10 @@ export async function GET() {
           orderBy: { scheduledAt: "asc" },
         },
         schedules: {
+          where: { tabulatorUserId: userId },
           include: {
             scores: { include: { team: true }, orderBy: { createdAt: "asc" } },
+            tabulator: { select: { id: true, name: true, email: true } },
             resumeRequestedBy: { select: { id: true, name: true } },
             resumeApprovedBy: { select: { id: true, name: true } },
             controlRequestedBy: { select: { id: true, name: true } },
