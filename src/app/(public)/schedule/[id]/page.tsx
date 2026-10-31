@@ -8,7 +8,7 @@ import { EventBracket } from "@/components/event-bracket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { fetcher } from "@/lib/api-client";
-import { format, eventCategoryLabel, eventTypeLabel, sessionSides, sessionVsLabel } from "@/lib/format";
+import { format, eventCategoryLabel, eventTypeLabel, sessionScoreLine, sessionVsLabel } from "@/lib/format";
 import { findGuidelineForEventName } from "@/lib/sports-guidelines";
 import type { SportEventDetail } from "@/lib/types";
 
@@ -127,7 +127,7 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
             <ul className="divide-y divide-border/60">
               {event.schedules.map((s) => {
                 const locked = s.status === "POSTPONED" || s.status === "FINISHED";
-                const { home, away } = sessionSides(s.scores);
+                const scoreLine = sessionScoreLine(s.scores);
                 return (
                   <li key={s.id} className="flex items-start justify-between gap-4 px-5 py-4">
                     <div className="min-w-0">
@@ -139,10 +139,8 @@ export default function PublicEventDetailPage({ params }: { params: Promise<{ id
                       {s.status === "POSTPONED" && s.postponeReason && (
                         <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Reason: {s.postponeReason}</p>
                       )}
-                      {s.status === "LIVE" && home && away && (
-                        <p className="mt-2 text-xs tabular-nums font-semibold">
-                          {home.score} – {away.score}
-                        </p>
+                      {s.status === "LIVE" && scoreLine && (
+                        <p className="mt-2 text-xs tabular-nums font-semibold">{scoreLine}</p>
                       )}
                     </div>
                     <Badge className={matchStatusStyles[s.status] ?? matchStatusStyles.SCHEDULED}>

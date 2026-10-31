@@ -461,8 +461,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             <div>
               <CardTitle className="text-base">Solo Games</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                Schedule a versus game between two enrolled teams. Tabulators request admin approval before
-                they can control the scoreboard.
+                Schedule a 1 vs 1 game or a field with two or more enrolled teams (pageants, literary).
+                Tabulators request admin approval before they can control the scoreboard.
               </p>
             </div>
             <ScheduleSessionDialog eventId={event.id} teams={enrolledTeams} />

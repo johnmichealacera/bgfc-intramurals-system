@@ -10,12 +10,11 @@ const createSchema = z
     title: z.string().optional(),
     scheduledAt: z.string().min(1),
     venue: z.string().optional(),
-    homeTeamId: z.string().min(1),
-    awayTeamId: z.string().min(1),
+    teamIds: z.array(z.string().min(1)).min(2, "Select at least two teams."),
   })
-  .refine((data) => data.homeTeamId !== data.awayTeamId, {
-    message: "Home and away teams must be different.",
-    path: ["awayTeamId"],
+  .refine((data) => new Set(data.teamIds).size === data.teamIds.length, {
+    message: "Each team can only be added once.",
+    path: ["teamIds"],
   });
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -50,13 +49,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     const body = createSchema.parse(await req.json());
     const enrolled = await db.eventTeam.findMany({
-      where: { sportEventId: id, teamId: { in: [body.homeTeamId, body.awayTeamId] } },
+      where: { sportEventId: id, teamId: { in: body.teamIds } },
       select: { teamId: true },
     });
     const enrolledIds = new Set(enrolled.map((row) => row.teamId));
-    if (!enrolledIds.has(body.homeTeamId) || !enrolledIds.has(body.awayTeamId)) {
+    if (body.teamIds.some((teamId) => !enrolledIds.has(teamId))) {
       return NextResponse.json(
-        { error: "Both teams must be enrolled in this event before scheduling a game." },
+        { error: "Every selected team must be enrolled in this event before scheduling." },
         { status: 400 },
       );
     }
@@ -68,7 +67,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         scheduledAt: new Date(body.scheduledAt),
         venue: body.venue?.trim() || null,
         scores: {
-          create: [{ teamId: body.homeTeamId }, { teamId: body.awayTeamId }],
+          create: body.teamIds.map((teamId) => ({ teamId })),
         },
       },
     });

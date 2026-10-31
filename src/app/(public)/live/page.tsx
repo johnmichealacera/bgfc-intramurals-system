@@ -4,7 +4,7 @@ import useSWR from "swr";
 import { Radio } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetcher } from "@/lib/api-client";
-import { format, sessionSides } from "@/lib/format";
+import { format, sessionVsLabel } from "@/lib/format";
 import type { EventSchedule, Match } from "@/lib/types";
 
 export default function LivePage() {
@@ -74,7 +74,7 @@ export default function LivePage() {
             </div>
           ))}
           {(sessions ?? []).map((s) => {
-            const { home, away } = sessionSides(s.scores);
+            const rows = s.scores ?? [];
             return (
               <div
                 key={s.id}
@@ -89,20 +89,21 @@ export default function LivePage() {
                     LIVE
                   </span>
                 </div>
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <div className="flex flex-1 items-center gap-2">
-                    {home && <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: home.team.colorHex }} />}
-                    <p className="truncate text-sm font-semibold">{home?.team.name ?? "TBD"}</p>
+                {rows.length === 0 ? (
+                  <p className="mt-4 text-sm text-muted-foreground">{sessionVsLabel(s.scores, s.title || "Solo session")}</p>
+                ) : (
+                  <div className="mt-4 space-y-2">
+                    {rows.map((row) => (
+                      <div key={row.teamId} className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: row.team.colorHex }} />
+                          <p className="truncate text-sm font-semibold">{row.team.name}</p>
+                        </div>
+                        <p className="text-2xl font-bold tabular-nums">{row.score}</p>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-2xl font-bold tabular-nums">{home?.score ?? 0}</p>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <div className="flex flex-1 items-center gap-2">
-                    {away && <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: away.team.colorHex }} />}
-                    <p className="truncate text-sm font-semibold">{away?.team.name ?? "TBD"}</p>
-                  </div>
-                  <p className="text-2xl font-bold tabular-nums">{away?.score ?? 0}</p>
-                </div>
+                )}
                 {s.venue && (
                   <p className="mt-4 text-xs text-muted-foreground">
                     {s.venue} · {format.time(s.scheduledAt)}

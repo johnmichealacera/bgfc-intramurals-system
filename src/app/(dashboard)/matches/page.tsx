@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api-client";
-import { format, sessionSides, sessionVsLabel } from "@/lib/format";
+import { format, sessionScoreLine, sessionVsLabel } from "@/lib/format";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
 import type { EventSchedule, Match, SportEvent, Team } from "@/lib/types";
 
@@ -246,14 +246,11 @@ function MatchRow({ match: m }: { match: Match }) {
 
 function SessionRow({ session: s }: { session: EventSchedule }) {
   const locked = s.status === "FINISHED" || s.status === "POSTPONED";
-  const { home, away } = sessionSides(s.scores);
   return (
     <TableRow>
       <TableCell className="text-muted-foreground">{s.sportEvent?.name} · Solo</TableCell>
       <TableCell className="font-medium">{sessionVsLabel(s.scores, s.title || "Solo session")}</TableCell>
-      <TableCell className="tabular-nums">
-        {home && away ? `${home.score} – ${away.score}` : "—"}
-      </TableCell>
+      <TableCell className="tabular-nums">{sessionScoreLine(s.scores) ?? "—"}</TableCell>
       <TableCell className="text-muted-foreground">{format.dateTime(s.scheduledAt)}</TableCell>
       <TableCell>
         <Badge className={matchStatusStyles[s.status]}>
