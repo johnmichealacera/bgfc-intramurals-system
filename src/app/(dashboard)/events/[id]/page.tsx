@@ -225,6 +225,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="outline">{eventTypeLabel(event.type)}</Badge>
+            {event.pointsSystem && <Badge variant="outline">{event.pointsSystem.name} points</Badge>}
             {event.category && <Badge variant="outline">{eventCategoryLabel(event.category)}</Badge>}
             <Badge>{event.status}</Badge>
             {event.status === "UPCOMING" && (

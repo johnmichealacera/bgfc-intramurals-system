@@ -9,6 +9,7 @@ const updateSchema = z.object({
   name: z.string().min(1).optional(),
   category: z.enum(["MEN", "WOMEN", "MIXED"]).nullable().optional(),
   description: z.string().optional(),
+  pointsSystemId: z.string().min(1).optional(),
 });
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -65,6 +66,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           orderBy: { team: { name: "asc" } },
         },
         season: true,
+        pointsSystem: { select: { id: true, name: true, suggestedType: true } },
       },
     });
     return NextResponse.json(event);
@@ -80,7 +82,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const { id } = await params;
     const body = updateSchema.parse(await req.json());
-    const event = await db.sportEvent.update({ where: { id }, data: body });
+    if (body.pointsSystemId) {
+      const current = await db.sportEvent.findUniqueOrThrow({ where: { id }, select: { seasonId: true } });
+      const system = await db.pointsSystem.findFirst({
+        where: { id: body.pointsSystemId, seasonId: current.seasonId },
+      });
+      if (!system) {
+        return NextResponse.json({ error: "Choose a point system from this season." }, { status: 400 });
+      }
+    }
+    const event = await db.sportEvent.update({
+      where: { id },
+      data: body,
+      include: { pointsSystem: { select: { id: true, name: true, suggestedType: true } } },
+    });
     return NextResponse.json(event);
   } catch (error) {
     return apiError(error);

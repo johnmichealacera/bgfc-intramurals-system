@@ -47,9 +47,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    const rules = await db.placementPointsRule.findMany({
-      where: { seasonId: event.seasonId, eventType: event.type },
-    });
+    const rules = event.pointsSystemId
+      ? await db.placementPointsRule.findMany({ where: { pointsSystemId: event.pointsSystemId } })
+      : [];
     const pointsByPlacement = new Map(rules.map((r) => [r.placement, r.points]));
 
     const warnings: string[] = [];

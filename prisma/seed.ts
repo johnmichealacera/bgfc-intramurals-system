@@ -159,12 +159,22 @@ async function main() {
     { placement: 4, points: 4 },
     { placement: 5, points: 2 },
   ];
-  await db.placementPointsRule.deleteMany({ where: { seasonId: season.id } });
-  await db.placementPointsRule.createMany({
-    data: [
-      ...groupPoints.map((rule) => ({ seasonId: season.id, eventType: "TEAM_VS_TEAM" as const, ...rule })),
-      ...soloPoints.map((rule) => ({ seasonId: season.id, eventType: "PLACEMENT" as const, ...rule })),
-    ],
+  await db.pointsSystem.deleteMany({ where: { seasonId: season.id } });
+  const groupSystem = await db.pointsSystem.create({
+    data: {
+      seasonId: season.id,
+      name: "Group",
+      suggestedType: "TEAM_VS_TEAM",
+      rules: { create: groupPoints },
+    },
+  });
+  const soloSystem = await db.pointsSystem.create({
+    data: {
+      seasonId: season.id,
+      name: "Solo",
+      suggestedType: "PLACEMENT",
+      rules: { create: soloPoints },
+    },
   });
 
   for (const sport of SPORTS_GUIDELINES) {
@@ -225,6 +235,7 @@ async function main() {
       category: "MEN",
       status: "ONGOING",
       description: "Men's basketball division — live demo event for courtside scoring.",
+      pointsSystemId: groupSystem.id,
     },
   });
 
@@ -237,6 +248,7 @@ async function main() {
       category: "WOMEN",
       status: "COMPLETED",
       description: "Women's volleyball division — finalized for overall standings.",
+      pointsSystemId: groupSystem.id,
     },
   });
 
@@ -249,6 +261,7 @@ async function main() {
       category: "MEN",
       status: "UPCOMING",
       description: "Men's table tennis — upcoming scheduled matches.",
+      pointsSystemId: groupSystem.id,
     },
   });
 
@@ -261,6 +274,7 @@ async function main() {
       category: "MIXED",
       status: "COMPLETED",
       description: "Placement-based dancesport finals — points already recorded.",
+      pointsSystemId: soloSystem.id,
     },
   });
 
@@ -273,6 +287,7 @@ async function main() {
       category: "MIXED",
       status: "ONGOING",
       description: "Chess tournament in progress — placements pending finalization.",
+      pointsSystemId: soloSystem.id,
     },
   });
 

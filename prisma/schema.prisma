@@ -134,10 +134,10 @@ model Season {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  teams        Team[]
-  events       SportEvent[]
-  pointRules   PlacementPointsRule[]
-  participants Participant[]
+  teams          Team[]
+  events         SportEvent[]
+  pointsSystems  PointsSystem[]
+  participants   Participant[]
 
   @@index([isActive])
   @@map("seasons")
@@ -204,14 +204,17 @@ model SportEvent {
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
-  season     Season           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
-  eventTeams    EventTeam[]
-  schedules     EventSchedule[]
-  matches       Match[]
-  bracketGames  EventBracketGame[]
-  placements    EventPlacement[]
+  season         Season           @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  pointsSystem   PointsSystem?    @relation(fields: [pointsSystemId], references: [id], onDelete: Restrict)
+  pointsSystemId String?
+  eventTeams     EventTeam[]
+  schedules      EventSchedule[]
+  matches        Match[]
+  bracketGames   EventBracketGame[]
+  placements     EventPlacement[]
 
   @@index([seasonId, status])
+  @@index([pointsSystemId])
   @@map("sport_events")
 }
 
@@ -407,18 +410,34 @@ model EventPlacement {
   @@map("event_placements")
 }
 
+model PointsSystem {
+  id            String          @id @default(cuid())
+  seasonId      String
+  name          String
+  suggestedType SportEventType?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  season Season                @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  rules  PlacementPointsRule[]
+  events SportEvent[]
+
+  @@unique([seasonId, name])
+  @@index([seasonId])
+  @@map("points_systems")
+}
+
 model PlacementPointsRule {
-  id        String         @id @default(cuid())
-  seasonId  String
-  eventType SportEventType
-  placement Int
-  points    Int
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id             String   @id @default(cuid())
+  pointsSystemId String
+  placement      Int
+  points         Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  pointsSystem PointsSystem @relation(fields: [pointsSystemId], references: [id], onDelete: Cascade)
 
-  @@unique([seasonId, eventType, placement])
-  @@index([seasonId, eventType])
+  @@unique([pointsSystemId, placement])
+  @@index([pointsSystemId])
   @@map("placement_points_rules")
 }

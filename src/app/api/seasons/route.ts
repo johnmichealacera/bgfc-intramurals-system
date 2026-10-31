@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions, assertRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-utils";
 import { db } from "@/lib/db";
+import { ensureDefaultPointsSystems } from "@/lib/points-systems";
 
 const seasonSchema = z.object({
   name: z.string().min(2),
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
 
     const body = seasonSchema.parse(await req.json());
     const season = await db.season.create({ data: body });
+    await ensureDefaultPointsSystems(season.id);
     return NextResponse.json(season, { status: 201 });
   } catch (error) {
     return apiError(error);

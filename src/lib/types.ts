@@ -113,6 +113,14 @@ export type EventSchedule = {
   sportEvent?: SportEvent;
 };
 
+export type PointsSystem = {
+  id: string;
+  seasonId: string;
+  name: string;
+  suggestedType: SportEventType | null;
+  rules: PlacementPointsRule[];
+};
+
 export type SportEvent = {
   id: string;
   seasonId: string;
@@ -121,6 +129,8 @@ export type SportEvent = {
   category: SportEventCategory | null;
   status: SportEventStatus;
   description: string | null;
+  pointsSystemId?: string | null;
+  pointsSystem?: { id: string; name: string; suggestedType: SportEventType | null } | null;
   schedules?: EventSchedule[];
   matches?: Match[];
   _count?: { matches: number; placements: number };
@@ -197,8 +207,7 @@ export type EventPlacement = {
 
 export type PlacementPointsRule = {
   id: string;
-  seasonId: string;
-  eventType: SportEventType;
+  pointsSystemId: string;
   placement: number;
   points: number;
 };

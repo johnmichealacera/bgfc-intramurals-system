@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,18 +27,25 @@ import {
 } from "@/components/ui/dialog";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useSelectedSeason } from "@/hooks/use-selected-season";
-import { eventCategoryLabel, eventTypeLabel } from "@/lib/format";
-import type { Sport, SportEvent, SportEventCategory, SportEventStatus } from "@/lib/types";
+import { eventCategoryLabel, eventTypeLabel, suggestedPointsSystemId } from "@/lib/format";
+import type { PointsSystem, Sport, SportEvent, SportEventCategory, SportEventStatus } from "@/lib/types";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["TEAM_VS_TEAM", "PLACEMENT"]),
   category: z.enum(["MEN", "WOMEN", "MIXED", "UNSPECIFIED"]),
   description: z.string().optional(),
+  pointsSystemId: z.string().min(1, "Select a point system"),
 });
 type FormValues = z.infer<typeof schema>;
 
-const DEFAULT_VALUES: FormValues = { name: "", type: "TEAM_VS_TEAM", category: "UNSPECIFIED", description: "" };
+const DEFAULT_VALUES: FormValues = {
+  name: "",
+  type: "TEAM_VS_TEAM",
+  category: "UNSPECIFIED",
+  description: "",
+  pointsSystemId: "",
+};
 
 const EVENT_TYPE_ITEMS = {
   TEAM_VS_TEAM: "Group (e.g. basketball, volleyball)",
@@ -77,6 +84,19 @@ export default function EventsPage() {
     queryFn: () => apiFetch<Sport[]>("/api/sports"),
   });
 
+  const { data: pointsSystems } = useQuery({
+    queryKey: ["points-systems", seasonId],
+    queryFn: () => apiFetch<PointsSystem[]>(`/api/points-systems?seasonId=${seasonId}`),
+    enabled: !!seasonId,
+  });
+
+  const eventType = form.watch("type");
+
+  useEffect(() => {
+    if (editingEvent || !pointsSystems?.length) return;
+    form.setValue("pointsSystemId", suggestedPointsSystemId(pointsSystems, eventType));
+  }, [eventType, pointsSystems, editingEvent, form]);
+
   const createMutation = useMutation({
     mutationFn: (values: FormValues) =>
       apiFetch<SportEvent>("/api/events", {
@@ -97,10 +117,27 @@ export default function EventsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name, category, description }: { id: string; name: string; category: FormValues["category"]; description?: string }) =>
+    mutationFn: ({
+      id,
+      name,
+      category,
+      description,
+      pointsSystemId,
+    }: {
+      id: string;
+      name: string;
+      category: FormValues["category"];
+      description?: string;
+      pointsSystemId: string;
+    }) =>
       apiFetch<SportEvent>(`/api/events/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name, category: category === "UNSPECIFIED" ? null : category, description }),
+        body: JSON.stringify({
+          name,
+          category: category === "UNSPECIFIED" ? null : category,
+          description,
+          pointsSystemId,
+        }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events", seasonId] });
@@ -114,7 +151,10 @@ export default function EventsPage() {
 
   function openCreateDialog() {
     setEditingEvent(null);
-    form.reset(DEFAULT_VALUES);
+    form.reset({
+      ...DEFAULT_VALUES,
+      pointsSystemId: suggestedPointsSystemId(pointsSystems ?? [], "TEAM_VS_TEAM"),
+    });
     setOpen(true);
   }
 
@@ -125,6 +165,7 @@ export default function EventsPage() {
       type: event.type,
       category: event.category ?? "UNSPECIFIED",
       description: event.description ?? "",
+      pointsSystemId: event.pointsSystemId ?? event.pointsSystem?.id ?? "",
     });
     setOpen(true);
   }
@@ -136,6 +177,7 @@ export default function EventsPage() {
         name: values.name,
         category: values.category,
         description: values.description,
+        pointsSystemId: values.pointsSystemId,
       });
     } else {
       createMutation.mutate(values);
@@ -190,6 +232,7 @@ export default function EventsPage() {
                             onClick={() => {
                               form.setValue("name", sport.name);
                               form.setValue("type", sport.type);
+                              form.setValue("pointsSystemId", suggestedPointsSystemId(pointsSystems ?? [], sport.type));
                             }}
                             className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                           >
@@ -230,10 +273,41 @@ export default function EventsPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Group events use the group points table. Solo events use the solo table.
+                      Type only changes how the event is run. Points are chosen separately below.
                     </p>
                     {editingEvent && (
                       <p className="text-xs text-muted-foreground">Type can&apos;t be changed after an event is created.</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Point system</Label>
+                    <Select
+                      value={form.watch("pointsSystemId")}
+                      onValueChange={(v) => form.setValue("pointsSystemId", v ?? "")}
+                      items={Object.fromEntries((pointsSystems ?? []).map((system) => [system.id, system.name]))}
+                      disabled={!pointsSystems?.length}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a point system" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(pointsSystems ?? []).map((system) => (
+                          <SelectItem key={system.id} value={system.id}>
+                            {system.name}
+                            {system.suggestedType === "TEAM_VS_TEAM"
+                              ? " (group default)"
+                              : system.suggestedType === "PLACEMENT"
+                                ? " (solo default)"
+                                : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Group and solo are suggested from the event type. Pick another system for literary, pageant, or a custom table.
+                    </p>
+                    {form.formState.errors.pointsSystemId && (
+                      <p className="text-sm text-destructive">{form.formState.errors.pointsSystemId.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -339,6 +413,7 @@ export default function EventsPage() {
                               {event.type === "TEAM_VS_TEAM"
                                 ? `${event._count.matches} match${event._count.matches === 1 ? "" : "es"}`
                                 : `${event._count.placements} result${event._count.placements === 1 ? "" : "s"}`}
+                              {event.pointsSystem ? ` · ${event.pointsSystem.name} points` : ""}
                             </p>
                           )}
                         </CardContent>

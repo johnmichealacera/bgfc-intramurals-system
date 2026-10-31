@@ -11,6 +11,7 @@ const eventSchema = z.object({
   type: z.enum(["TEAM_VS_TEAM", "PLACEMENT"]),
   category: z.enum(["MEN", "WOMEN", "MIXED"]).optional(),
   description: z.string().optional(),
+  pointsSystemId: z.string().min(1),
 });
 
 export async function GET(req: Request) {
@@ -35,7 +36,10 @@ export async function GET(req: Request) {
           : {}),
       },
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { matches: true, placements: true } } },
+      include: {
+        _count: { select: { matches: true, placements: true } },
+        pointsSystem: { select: { id: true, name: true, suggestedType: true } },
+      },
     });
     return NextResponse.json(events);
   } catch (error) {
@@ -49,7 +53,16 @@ export async function POST(req: Request) {
     assertRole(session, ["ADMIN"]);
 
     const body = eventSchema.parse(await req.json());
-    const event = await db.sportEvent.create({ data: body });
+    const system = await db.pointsSystem.findFirst({
+      where: { id: body.pointsSystemId, seasonId: body.seasonId },
+    });
+    if (!system) {
+      return NextResponse.json({ error: "Choose a point system from this season." }, { status: 400 });
+    }
+    const event = await db.sportEvent.create({
+      data: body,
+      include: { pointsSystem: { select: { id: true, name: true, suggestedType: true } } },
+    });
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
     return apiError(error);

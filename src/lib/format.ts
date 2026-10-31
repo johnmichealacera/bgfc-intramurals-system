@@ -14,6 +14,13 @@ export function eventTypeLabel(type: SportEventType) {
   return type === "TEAM_VS_TEAM" ? "Group" : "Solo";
 }
 
+export function suggestedPointsSystemId<T extends { id: string; suggestedType: SportEventType | null }>(
+  systems: T[],
+  eventType: SportEventType,
+) {
+  return systems.find((system) => system.suggestedType === eventType)?.id ?? systems[0]?.id ?? "";
+}
+
 export function sessionSides(scores: EventScheduleScore[] | undefined) {
   const rows = scores ?? [];
   return { home: rows[0], away: rows[1] };
