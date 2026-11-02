@@ -8,7 +8,17 @@ import { db } from "@/lib/db";
 
 const userSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username must be at least 3 characters")
+    .max(32)
+    .regex(/^[a-zA-Z0-9._]+$/, "Use letters, numbers, dots, or underscores")
+    .transform((value) => value.toLowerCase()),
+  email: z
+    .union([z.string().email(), z.literal("")])
+    .optional()
+    .transform((value) => (value ? value : null)),
   password: z.string().min(8),
   role: z.enum(["ADMIN", "TABULATOR"]),
 });
@@ -20,7 +30,7 @@ export async function GET() {
 
     const users = await db.user.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+      select: { id: true, name: true, username: true, email: true, role: true, isActive: true, createdAt: true },
     });
     return NextResponse.json(users);
   } catch (error) {
@@ -36,8 +46,8 @@ export async function POST(req: Request) {
     const body = userSchema.parse(await req.json());
     const password = await hash(body.password, 12);
     const user = await db.user.create({
-      data: { name: body.name, email: body.email, password, role: body.role },
-      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+      data: { name: body.name, username: body.username, email: body.email, password, role: body.role },
+      select: { id: true, name: true, username: true, email: true, role: true, isActive: true, createdAt: true },
     });
     return NextResponse.json(user, { status: 201 });
   } catch (error) {

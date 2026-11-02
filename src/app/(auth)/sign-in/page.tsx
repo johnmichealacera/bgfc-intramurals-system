@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const schema = z.object({
-  email: z.string().email("Enter a valid email address"),
+  username: z.string().trim().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -35,7 +35,7 @@ export default function SignInPage() {
     });
 
     if (!result || result.error) {
-      toast.error("Invalid email or password");
+      toast.error("Invalid username or password");
       return;
     }
 
@@ -88,15 +88,16 @@ export default function SignInPage() {
         <CardContent className="space-y-6 px-0">
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
+                id="username"
+                type="text"
+                autoComplete="username"
                 className="h-11 bg-background/80"
-                {...form.register("email")}
+                {...form.register("username")}
               />
-              {form.formState.errors.email && (
-                <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+              {form.formState.errors.username && (
+                <p className="text-sm text-destructive">{form.formState.errors.username.message}</p>
               )}
             </div>
             <div className="space-y-2">

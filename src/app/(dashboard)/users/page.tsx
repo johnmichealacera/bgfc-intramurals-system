@@ -30,7 +30,13 @@ import type { AppUser } from "@/lib/types";
 
 const schema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email(),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username must be at least 3 characters")
+    .max(32)
+    .regex(/^[a-zA-Z0-9._]+$/, "Use letters, numbers, dots, or underscores"),
+  email: z.union([z.string().email("Enter a valid email"), z.literal("")]).optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["ADMIN", "TABULATOR"]),
 });
@@ -41,7 +47,10 @@ const ROLE_ITEMS = { TABULATOR: "Tabulator", ADMIN: "Admin" };
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { role: "TABULATOR" } });
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: "", username: "", email: "", password: "", role: "TABULATOR" },
+  });
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
@@ -54,7 +63,7 @@ export default function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User created");
       setOpen(false);
-      form.reset({ name: "", email: "", password: "", role: "TABULATOR" });
+      form.reset({ name: "", username: "", email: "", password: "", role: "TABULATOR" });
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Failed to create user"),
   });
@@ -93,7 +102,14 @@ export default function UsersPage() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="username">Username</Label>
+                  <Input id="username" autoComplete="off" {...form.register("username")} />
+                  {form.formState.errors.username && (
+                    <p className="text-sm text-destructive">{form.formState.errors.username.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email (optional)</Label>
                   <Input id="email" type="email" {...form.register("email")} />
                   {form.formState.errors.email && (
                     <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
@@ -147,6 +163,7 @@ export default function UsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Active</TableHead>
@@ -156,7 +173,8 @@ export default function UsersPage() {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.username}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email || "—"}</TableCell>
                     <TableCell>
                       <Select
                         value={user.role}

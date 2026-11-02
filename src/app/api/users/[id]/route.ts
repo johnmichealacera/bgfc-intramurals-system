@@ -25,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const user = await db.user.update({
       where: { id },
       data: { ...rest, ...(password ? { password: await hash(password, 12) } : {}) },
-      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+      select: { id: true, name: true, username: true, email: true, role: true, isActive: true, createdAt: true },
     });
     return NextResponse.json(user);
   } catch (error) {

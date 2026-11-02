@@ -13,19 +13,28 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) return null;
+        const username = credentials?.username?.trim().toLowerCase();
+        const password = credentials?.password;
+        if (!username || !password) return null;
 
-        const user = await db.user.findUnique({ where: { email: credentials.email } });
+        const user = await db.user.findFirst({
+          where: { username: { equals: username, mode: "insensitive" } },
+        });
         if (!user || !user.isActive) return null;
 
-        const isValid = await compare(credentials.password, user.password);
+        const isValid = await compare(password, user.password);
         if (!isValid) return null;
 
-        return { id: user.id, email: user.email, name: user.name, role: user.role } as unknown as Session["user"];
+        return {
+          id: user.id,
+          email: user.email ?? undefined,
+          name: user.name,
+          role: user.role,
+        } as unknown as Session["user"];
       },
     }),
   ],

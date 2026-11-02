@@ -62,7 +62,8 @@ export type TeamDetail = Team & {
 export type AppUser = {
   id: string;
   name: string;
-  email: string;
+  username: string;
+  email: string | null;
   role: "ADMIN" | "TABULATOR";
   isActive: boolean;
   createdAt: string;
