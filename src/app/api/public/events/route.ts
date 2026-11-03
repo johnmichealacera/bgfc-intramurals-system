@@ -15,13 +15,14 @@ export async function GET(req: Request) {
       where: { seasonId },
       include: {
         placements: { include: { team: true }, orderBy: { placement: "asc" } },
-        schedules: { orderBy: { scheduledAt: "asc" } },
+        schedules: {
+          include: { scores: { include: { team: true }, orderBy: { createdAt: "asc" } } },
+          orderBy: { scheduledAt: "asc" },
+        },
         matches: {
-          where: { status: "POSTPONED" },
           include: { homeTeam: true, awayTeam: true },
           orderBy: { scheduledAt: "asc" },
         },
-        _count: { select: { matches: true } },
       },
       orderBy: { createdAt: "desc" },
     });
